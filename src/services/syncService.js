@@ -167,14 +167,31 @@ export function formatRecurringBillFromDb(row) {
 
 /**
  * Fetch all cloud records for an authenticated user
+/**
+ * Fetch all cloud records from Supabase
  */
-export async function fetchCloudData(userId) {
+export async function fetchCloudData(userId = null) {
   const supabase = getSupabase();
-  if (!supabase || !userId) {
-    return { success: false, error: 'Supabase client or user missing' };
+  if (!supabase) {
+    return { success: false, error: 'Supabase client missing' };
   }
 
   try {
+    let accountsQuery = supabase.from('accounts').select('*');
+    let txQuery = supabase.from('transactions').select('*').order('date', { ascending: false });
+    let budgetsQuery = supabase.from('budgets').select('*');
+    let savingsQuery = supabase.from('savings_goals').select('*');
+    let billsQuery = supabase.from('recurring_bills').select('*');
+    let profileQuery = userId ? supabase.from('profiles').select('*').eq('id', userId).maybeSingle() : Promise.resolve({ data: null });
+
+    if (userId) {
+      accountsQuery = accountsQuery.eq('user_id', userId);
+      txQuery = txQuery.eq('user_id', userId);
+      budgetsQuery = budgetsQuery.eq('user_id', userId);
+      savingsQuery = savingsQuery.eq('user_id', userId);
+      billsQuery = billsQuery.eq('user_id', userId);
+    }
+
     const [
       profileRes,
       accountsRes,
@@ -183,15 +200,15 @@ export async function fetchCloudData(userId) {
       savingsRes,
       billsRes,
     ] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
-      supabase.from('accounts').select('*').eq('user_id', userId),
-      supabase.from('transactions').select('*').eq('user_id', userId).order('date', { ascending: false }),
-      supabase.from('budgets').select('*').eq('user_id', userId),
-      supabase.from('savings_goals').select('*').eq('user_id', userId),
-      supabase.from('recurring_bills').select('*').eq('user_id', userId),
+      profileQuery,
+      accountsQuery,
+      txQuery,
+      budgetsQuery,
+      savingsQuery,
+      billsQuery,
     ]);
 
-    const profileData = profileRes.data || {};
+    const profileData = profileRes?.data || {};
     const accounts = (accountsRes.data || []).map(formatAccountFromDb);
     const transactions = (transactionsRes.data || []).map(formatTransactionFromDb);
     const budgets = (budgetsRes.data || []).map(formatBudgetFromDb);
@@ -227,30 +244,31 @@ export async function fetchCloudData(userId) {
 }
 
 /**
- * Upload all current local store state to Supabase in bulk
+ * Upload all current store state to Supabase in bulk
  */
-export async function uploadLocalDataToCloud(userId, state) {
+export async function uploadLocalDataToCloud(userId = null, state) {
   const supabase = getSupabase();
-  if (!supabase || !userId) {
-    return { success: false, error: 'Supabase client or user missing' };
+  if (!supabase) {
+    return { success: false, error: 'Supabase client missing' };
   }
 
   try {
-    // 1. Profile & Preferences
-    const profilePayload = {
-      id: userId,
-      full_name: state.profile?.name || '',
-      email: state.user?.email || '',
-      monthly_salary: Number(state.profile?.monthlySalary) || 0,
-      currency: state.settings?.currency || 'BDT',
-      theme: state.settings?.theme || 'light',
-      financial_mode: state.financialMode || 'cruise',
-      mode_settings: state.modeSettings || {},
-      onboarding_complete: true,
-      updated_at: new Date().toISOString(),
-    };
-
-    await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' });
+    // 1. Profile & Preferences (if user authenticated)
+    if (userId) {
+      const profilePayload = {
+        id: userId,
+        full_name: state.profile?.name || '',
+        email: state.user?.email || '',
+        monthly_salary: Number(state.profile?.monthlySalary) || 0,
+        currency: state.settings?.currency || 'BDT',
+        theme: state.settings?.theme || 'light',
+        financial_mode: state.financialMode || 'cruise',
+        mode_settings: state.modeSettings || {},
+        onboarding_complete: true,
+        updated_at: new Date().toISOString(),
+      };
+      await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' });
+    }
 
     // 2. Accounts
     if (state.accounts && state.accounts.length > 0) {
@@ -292,13 +310,15 @@ export async function uploadLocalDataToCloud(userId, state) {
 /**
  * Delta Push: Single Transaction
  */
-export async function pushTransaction(userId, txn, action = 'upsert') {
+export async function pushTransaction(userId = null, txn, action = 'upsert') {
   const supabase = getSupabase();
-  if (!supabase || !userId) return;
+  if (!supabase) return;
 
   try {
     if (action === 'delete') {
-      await supabase.from('transactions').delete().eq('id', txn.id).eq('user_id', userId);
+      let q = supabase.from('transactions').delete().eq('id', txn.id);
+      if (userId) q = q.eq('user_id', userId);
+      await q;
     } else {
       const payload = formatTransactionForDb(userId, txn);
       await supabase.from('transactions').upsert(payload, { onConflict: 'id' });
@@ -311,13 +331,15 @@ export async function pushTransaction(userId, txn, action = 'upsert') {
 /**
  * Delta Push: Single Account
  */
-export async function pushAccount(userId, account, action = 'upsert') {
+export async function pushAccount(userId = null, account, action = 'upsert') {
   const supabase = getSupabase();
-  if (!supabase || !userId) return;
+  if (!supabase) return;
 
   try {
     if (action === 'delete') {
-      await supabase.from('accounts').delete().eq('id', account.id).eq('user_id', userId);
+      let q = supabase.from('accounts').delete().eq('id', account.id);
+      if (userId) q = q.eq('user_id', userId);
+      await q;
     } else {
       const payload = formatAccountForDb(userId, account);
       await supabase.from('accounts').upsert(payload, { onConflict: 'id' });
@@ -330,9 +352,9 @@ export async function pushAccount(userId, account, action = 'upsert') {
 /**
  * Delta Push: Multiple Accounts (e.g. after a balance transfer or adjustments)
  */
-export async function pushAccounts(userId, accounts) {
+export async function pushAccounts(userId = null, accounts) {
   const supabase = getSupabase();
-  if (!supabase || !userId || !accounts || accounts.length === 0) return;
+  if (!supabase || !accounts || accounts.length === 0) return;
 
   try {
     const payloads = accounts.map((a) => formatAccountForDb(userId, a));
@@ -345,13 +367,15 @@ export async function pushAccounts(userId, accounts) {
 /**
  * Delta Push: Single Budget
  */
-export async function pushBudget(userId, budget, action = 'upsert') {
+export async function pushBudget(userId = null, budget, action = 'upsert') {
   const supabase = getSupabase();
-  if (!supabase || !userId) return;
+  if (!supabase) return;
 
   try {
     if (action === 'delete') {
-      await supabase.from('budgets').delete().eq('id', budget.id).eq('user_id', userId);
+      let q = supabase.from('budgets').delete().eq('id', budget.id);
+      if (userId) q = q.eq('user_id', userId);
+      await q;
     } else {
       const payload = formatBudgetForDb(userId, budget);
       await supabase.from('budgets').upsert(payload, { onConflict: 'id' });
@@ -364,13 +388,15 @@ export async function pushBudget(userId, budget, action = 'upsert') {
 /**
  * Delta Push: Savings Goal
  */
-export async function pushSavingsGoal(userId, goal, action = 'upsert') {
+export async function pushSavingsGoal(userId = null, goal, action = 'upsert') {
   const supabase = getSupabase();
-  if (!supabase || !userId) return;
+  if (!supabase) return;
 
   try {
     if (action === 'delete') {
-      await supabase.from('savings_goals').delete().eq('id', goal.id).eq('user_id', userId);
+      let q = supabase.from('savings_goals').delete().eq('id', goal.id);
+      if (userId) q = q.eq('user_id', userId);
+      await q;
     } else {
       const payload = formatSavingsGoalForDb(userId, goal);
       await supabase.from('savings_goals').upsert(payload, { onConflict: 'id' });
@@ -383,13 +409,15 @@ export async function pushSavingsGoal(userId, goal, action = 'upsert') {
 /**
  * Delta Push: Recurring Bill
  */
-export async function pushRecurringBill(userId, bill, action = 'upsert') {
+export async function pushRecurringBill(userId = null, bill, action = 'upsert') {
   const supabase = getSupabase();
-  if (!supabase || !userId) return;
+  if (!supabase) return;
 
   try {
     if (action === 'delete') {
-      await supabase.from('recurring_bills').delete().eq('id', bill.id).eq('user_id', userId);
+      let q = supabase.from('recurring_bills').delete().eq('id', bill.id);
+      if (userId) q = q.eq('user_id', userId);
+      await q;
     } else {
       const payload = formatRecurringBillForDb(userId, bill);
       await supabase.from('recurring_bills').upsert(payload, { onConflict: 'id' });
@@ -402,7 +430,7 @@ export async function pushRecurringBill(userId, bill, action = 'upsert') {
 /**
  * Delta Push: Profile & Preferences
  */
-export async function pushProfile(userId, data) {
+export async function pushProfile(userId = null, data) {
   const supabase = getSupabase();
   if (!supabase || !userId) return;
 
@@ -417,3 +445,4 @@ export async function pushProfile(userId, data) {
     console.warn('pushProfile background sync warning:', err);
   }
 }
+

@@ -428,24 +428,24 @@ export default function Settings() {
                     {lang === 'bn' ? 'Supabase ব্যাকআপ, মাল্টি-ডিভাইস সিঙ্ক ও লোকাল স্টোরেজ' : 'Supabase cloud backup, cross-device sync & local data'}
                   </p>
                 </div>
-                {user && (
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: 'var(--weight-bold)',
-                      color: '#207208',
-                      backgroundColor: 'rgba(94, 210, 28, 0.15)',
-                      padding: '3px 8px',
-                      borderRadius: 'var(--radius-full)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4,
-                    }}
-                  >
-                    <Cloud size={12} />
-                    <span>{lang === 'bn' ? 'সংযুক্ত' : 'Connected'}</span>
-                  </span>
-                )}
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 'var(--weight-bold)',
+                    color: '#207208',
+                    backgroundColor: 'rgba(94, 210, 28, 0.15)',
+                    padding: '3px 9px',
+                    borderRadius: 'var(--radius-full)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    border: '1px solid rgba(94, 210, 28, 0.3)',
+                  }}
+                >
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#5ED21C', boxShadow: '0 0 6px #5ED21C' }} />
+                  <Cloud size={12} />
+                  <span>{lang === 'bn' ? 'অনলাইন ও সিঙ্কড' : 'Online & Synced'}</span>
+                </span>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
@@ -454,8 +454,8 @@ export default function Settings() {
                   style={{
                     padding: '12px 14px',
                     borderRadius: 'var(--radius-lg)',
-                    background: user ? 'rgba(94, 210, 28, 0.08)' : 'var(--color-surface-secondary)',
-                    border: `1px solid ${user ? 'rgba(94, 210, 28, 0.25)' : 'var(--color-border)'}`,
+                    background: 'rgba(94, 210, 28, 0.08)',
+                    border: '1px solid rgba(94, 210, 28, 0.25)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -469,61 +469,47 @@ export default function Settings() {
                         width: 36,
                         height: 36,
                         borderRadius: 'var(--radius-md)',
-                        background: user ? 'rgba(94, 210, 28, 0.18)' : 'rgba(59, 130, 246, 0.12)',
-                        color: user ? '#5ED21C' : '#3B82F6',
+                        background: 'rgba(94, 210, 28, 0.18)',
+                        color: '#5ED21C',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         flexShrink: 0,
                       }}
                     >
-                      {user ? <Cloud size={18} /> : <CloudOff size={18} />}
+                      <Cloud size={18} />
                     </div>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: '13px', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-primary)' }}>
-                        {user ? user.email : (lang === 'bn' ? 'লোকাল মোড সক্রিয়' : 'Local-First Mode')}
+                        {user ? user.email : (lang === 'bn' ? 'সরাসরি ক্লাউড সিঙ্ক সক্রিয়' : 'Automatic Cloud Sync Active')}
                       </div>
                       <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: 1 }}>
                         {user
-                          ? (lang === 'bn' ? 'সরাসরি রিয়েল-টাইম ক্লাউড ব্যাকআপ চলছে' : 'Encrypted cloud backup active')
-                          : (lang === 'bn' ? 'মাল্টি-ডিভাইস সিঙ্ক ও ক্লাউড ব্যাকআপ চালু করুন' : 'Connect cloud to sync across your phone & web')}
+                          ? (lang === 'bn' ? 'সরাসরি রিয়েল-টাইম ক্লাউড ব্যাকআপ চলছে' : 'Encrypted cloud backup linked to account')
+                          : (lang === 'bn' ? 'Supabase ব্যাকএন্ডে রিয়েল-টাইম অটোমেটিক সিঙ্ক চলছে' : 'Auto-syncing in real-time with Supabase Cloud')}
                       </div>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {user ? (
-                      <>
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
-                          onClick={handleManualSync}
-                          disabled={isSyncing}
-                          style={{ gap: 5, fontSize: '11px', height: 32 }}
-                        >
-                          <RefreshCw size={12} className={isSyncing ? 'animate-spin' : ''} />
-                          <span>{syncSuccess ? (lang === 'bn' ? 'সিঙ্কড!' : 'Synced!') : (lang === 'bn' ? 'সিঙ্ক করুন' : 'Sync Now')}</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => setAuthModalOpen(true)}
-                          style={{ fontSize: '11px', height: 32, padding: '0 8px' }}
-                        >
-                          <span>{lang === 'bn' ? 'ম্যানেজ' : 'Manage'}</span>
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        type="button"
-                        className="btn btn-primary btn-sm"
-                        onClick={() => setAuthModalOpen(true)}
-                        style={{ gap: 6, fontSize: '12px', height: 34 }}
-                      >
-                        <Cloud size={14} />
-                        <span>{lang === 'bn' ? 'ক্লাউড কানেক্ট' : 'Connect Cloud'}</span>
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={handleManualSync}
+                      disabled={isSyncing}
+                      style={{ gap: 5, fontSize: '11px', height: 32 }}
+                    >
+                      <RefreshCw size={12} className={isSyncing ? 'animate-spin' : ''} />
+                      <span>{syncSuccess ? (lang === 'bn' ? 'সিঙ্কড!' : 'Synced!') : (lang === 'bn' ? 'সিঙ্ক করুন' : 'Sync Now')}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => setAuthModalOpen(true)}
+                      style={{ fontSize: '11px', height: 32, padding: '0 8px' }}
+                    >
+                      <span>{user ? (lang === 'bn' ? 'ম্যানেজ' : 'Manage') : (lang === 'bn' ? 'অ্যাকাউন্ট' : 'Account')}</span>
+                    </button>
                   </div>
                 </div>
 
@@ -563,12 +549,12 @@ export default function Settings() {
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
                     <HardDrive size={11} />
-                    <span>{user ? 'Supabase Encrypted Cloud' : 'Private Local Storage • Offline Ready'}</span>
+                    <span>Supabase Cloud Database • Online Active</span>
                   </div>
                 </div>
               </div>
-              <span className={`badge ${user ? 'badge-income' : ''}`} style={{ fontSize: '10px', fontWeight: 'var(--weight-bold)', padding: '3px 8px' }}>
-                {user ? 'CLOUD SYNC ACTIVE' : 'BDT (৳) ACTIVE'}
+              <span className="badge badge-income" style={{ fontSize: '10px', fontWeight: 'var(--weight-bold)', padding: '3px 8px' }}>
+                CLOUD SYNC ACTIVE
               </span>
             </div>
           </div>

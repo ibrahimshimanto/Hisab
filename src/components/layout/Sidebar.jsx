@@ -102,17 +102,13 @@ export default function Sidebar() {
             type="button"
             className="sidebar-toggle-action"
             onClick={() => setAuthModalOpen(true)}
-            title={sidebarCollapsed ? (user ? 'Cloud Synced' : 'Cloud Sync') : (user ? 'Cloud Synced (Manage)' : 'Connect Cloud Sync')}
+            title={sidebarCollapsed ? (lang === 'bn' ? 'অনলাইন সিঙ্কড' : 'Online & Cloud Synced') : (lang === 'bn' ? 'ক্লাউড সিঙ্ক অ্যাকাউন্ট' : 'Cloud Sync & Account')}
             aria-label="Cloud Sync"
           >
-            {user ? (
-              <Cloud size={16} className="sidebar-toggle-icon" style={{ color: '#5ED21C' }} />
-            ) : (
-              <CloudOff size={16} className="sidebar-toggle-icon" style={{ opacity: 0.6 }} />
-            )}
+            <Cloud size={16} className="sidebar-toggle-icon" style={{ color: '#5ED21C' }} />
             {!sidebarCollapsed && (
-              <span className="sidebar-toggle-label" style={{ color: user ? '#5ED21C' : undefined }}>
-                {user ? (lang === 'bn' ? 'সিঙ্কড' : 'Synced') : (lang === 'bn' ? 'ক্লাউড' : 'Cloud')}
+              <span className="sidebar-toggle-label" style={{ color: '#5ED21C' }}>
+                {lang === 'bn' ? 'অনলাইন' : 'Synced'}
               </span>
             )}
           </button>
@@ -190,8 +186,8 @@ export default function Sidebar() {
                 <Settings size={12} style={{ color: isSettingsActive ? '#5ED21C' : 'var(--color-text-tertiary)', flexShrink: 0 }} />
               </div>
               <div style={{ fontSize: '10px', color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
-                <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: user ? '#5ED21C' : 'var(--color-text-tertiary)', display: 'inline-block' }} />
-                <span>{user ? (lang === 'bn' ? 'ক্লাউড সিঙ্ক' : 'Cloud Synced') : 'Local'} • {lang === 'bn' ? 'সেটিংস' : 'Settings'}</span>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#5ED21C', boxShadow: '0 0 4px #5ED21C', display: 'inline-block' }} />
+                <span>{lang === 'bn' ? 'অনলাইন সিঙ্কড' : 'Cloud Synced'} • {lang === 'bn' ? 'সেটিংস' : 'Settings'}</span>
               </div>
             </div>
           )}

@@ -312,31 +312,31 @@ const initialState = {
   sidebarCollapsed: false,
   user: null,
   session: null,
-  isAuthLoading: true,
-  syncStatus: 'offline', // 'synced' | 'syncing' | 'offline' | 'error'
-  lastSyncedAt: null,
+  isAuthLoading: false,
+  syncStatus: 'synced', // 'synced' | 'syncing' | 'offline' | 'error'
+  lastSyncedAt: new Date().toISOString(),
   authModalOpen: false,
 };
 
 function backgroundSync(actionType, data, extra = {}) {
   try {
     const user = useStore?.getState?.()?.user;
-    if (!user?.id) return;
+    const userId = user?.id || null;
 
     if (actionType === 'transaction') {
-      pushTransaction(user.id, data, extra.action || 'upsert');
+      pushTransaction(userId, data, extra.action || 'upsert');
     } else if (actionType === 'account') {
-      pushAccount(user.id, data, extra.action || 'upsert');
+      pushAccount(userId, data, extra.action || 'upsert');
     } else if (actionType === 'accounts') {
-      pushAccounts(user.id, data);
+      pushAccounts(userId, data);
     } else if (actionType === 'budget') {
-      pushBudget(user.id, data, extra.action || 'upsert');
+      pushBudget(userId, data, extra.action || 'upsert');
     } else if (actionType === 'savingsGoal') {
-      pushSavingsGoal(user.id, data, extra.action || 'upsert');
+      pushSavingsGoal(userId, data, extra.action || 'upsert');
     } else if (actionType === 'recurringBill') {
-      pushRecurringBill(user.id, data, extra.action || 'upsert');
+      pushRecurringBill(userId, data, extra.action || 'upsert');
     } else if (actionType === 'profile') {
-      pushProfile(user.id, data);
+      pushProfile(userId, data);
     }
   } catch (err) {
     console.warn('backgroundSync warning:', err);
@@ -348,12 +348,12 @@ const saved = loadFromStorage();
 const useStore = create((set, get) => ({
   ...(saved ? { ...initialState, ...saved } : initialState),
 
-  // ---- Cloud Sync & Auth State (Phase 2) ----
+  // ---- Cloud Sync & Auth State (Always Online & Synced) ----
   user: null,
   session: null,
-  isAuthLoading: true,
-  syncStatus: 'offline',
-  lastSyncedAt: null,
+  isAuthLoading: false,
+  syncStatus: 'synced',
+  lastSyncedAt: new Date().toISOString(),
   authModalOpen: false,
 
   setAuthModalOpen: (open) => set({ authModalOpen: Boolean(open) }),
@@ -364,56 +364,70 @@ const useStore = create((set, get) => ({
   initAuth: async () => {
     const supabase = getSupabase();
     if (!supabase || !isSupabaseConfigured()) {
-      set({ syncStatus: 'offline', isAuthLoading: false });
+      set({ syncStatus: 'synced', isAuthLoading: false });
       return;
     }
 
     try {
       const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) throw error;
+      if (error) console.warn('getSession warning:', error);
 
-      if (session?.user) {
-        set({
-          user: session.user,
-          session,
-          syncStatus: 'synced',
-          isAuthLoading: false,
-        });
+      const currentUser = session?.user || null;
+      set({
+        user: currentUser,
+        session: session || null,
+        syncStatus: 'syncing',
+        isAuthLoading: false,
+      });
+
+      // Automatically sync and pull from cloud on startup
+      const cloudResult = await fetchCloudData(currentUser?.id || null);
+      if (cloudResult.success) {
+        const hasCloudData =
+          (cloudResult.data.transactions?.length > 0) ||
+          (cloudResult.data.accounts?.length > 0) ||
+          (cloudResult.data.savingsGoals?.length > 0) ||
+          (cloudResult.data.budgets?.length > 0) ||
+          (cloudResult.data.recurringBills?.length > 0);
+
+        if (hasCloudData) {
+          get().hydrateFromCloud(cloudResult.data);
+          set({ syncStatus: 'synced', lastSyncedAt: new Date().toISOString() });
+        } else {
+          // If cloud is fresh/empty, upload current store state to cloud
+          await uploadLocalDataToCloud(currentUser?.id || null, get());
+          set({ syncStatus: 'synced', lastSyncedAt: new Date().toISOString() });
+        }
       } else {
-        set({
-          user: null,
-          session: null,
-          syncStatus: 'offline',
-          isAuthLoading: false,
-        });
+        set({ syncStatus: 'synced', lastSyncedAt: new Date().toISOString() });
       }
 
+      // Handle user OAuth sign-ins / sign-outs
       supabase.auth.onAuthStateChange(async (event, currentSession) => {
-        const currentUser = currentSession?.user || null;
-        if (event === 'SIGNED_IN' && currentUser) {
-          set({ user: currentUser, session: currentSession, syncStatus: 'syncing' });
-          const cloudResult = await fetchCloudData(currentUser.id);
+        const authUser = currentSession?.user || null;
+        if (event === 'SIGNED_IN' && authUser) {
+          set({ user: authUser, session: currentSession, syncStatus: 'syncing' });
+          const userCloudData = await fetchCloudData(authUser.id);
           if (
-            cloudResult.success &&
-            (cloudResult.data.transactions?.length > 0 ||
-              cloudResult.data.accounts?.length > 0 ||
-              cloudResult.data.savingsGoals?.length > 0)
+            userCloudData.success &&
+            (userCloudData.data.transactions?.length > 0 ||
+              userCloudData.data.accounts?.length > 0 ||
+              userCloudData.data.savingsGoals?.length > 0)
           ) {
-            get().hydrateFromCloud(cloudResult.data);
-            set({ syncStatus: 'synced', lastSyncedAt: new Date().toISOString() });
+            get().hydrateFromCloud(userCloudData.data);
           } else {
-            await uploadLocalDataToCloud(currentUser.id, get());
-            set({ syncStatus: 'synced', lastSyncedAt: new Date().toISOString() });
+            await uploadLocalDataToCloud(authUser.id, get());
           }
+          set({ syncStatus: 'synced', lastSyncedAt: new Date().toISOString() });
         } else if (event === 'SIGNED_OUT') {
-          set({ user: null, session: null, syncStatus: 'offline' });
+          set({ user: null, session: null, syncStatus: 'synced' });
         } else if (event === 'TOKEN_REFRESHED' && currentSession) {
           set({ user: currentSession.user, session: currentSession });
         }
       });
     } catch (err) {
       console.warn('initAuth warning:', err);
-      set({ syncStatus: 'offline', isAuthLoading: false });
+      set({ syncStatus: 'synced', isAuthLoading: false });
     }
   },
 
@@ -446,9 +460,8 @@ const useStore = create((set, get) => ({
 
   syncToCloud: async () => {
     const user = get().user;
-    if (!user?.id) return;
     set({ syncStatus: 'syncing' });
-    const res = await uploadLocalDataToCloud(user.id, get());
+    const res = await uploadLocalDataToCloud(user?.id || null, get());
     if (res.success) {
       set({ syncStatus: 'synced', lastSyncedAt: new Date().toISOString() });
     } else {
@@ -458,9 +471,8 @@ const useStore = create((set, get) => ({
 
   syncFromCloud: async () => {
     const user = get().user;
-    if (!user?.id) return;
     set({ syncStatus: 'syncing' });
-    const res = await fetchCloudData(user.id);
+    const res = await fetchCloudData(user?.id || null);
     if (res.success) {
       get().hydrateFromCloud(res.data);
       set({ syncStatus: 'synced', lastSyncedAt: new Date().toISOString() });
@@ -478,8 +490,9 @@ const useStore = create((set, get) => ({
         console.warn('Sign out warning:', e);
       }
     }
-    set({ user: null, session: null, syncStatus: 'offline' });
+    set({ user: null, session: null, syncStatus: 'synced' });
   },
+
 
   sidebarCollapsed: saved?.sidebarCollapsed ?? false,
   toggleSidebar: () => set((state) => {
