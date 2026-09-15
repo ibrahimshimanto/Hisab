@@ -971,6 +971,7 @@ const useStore = create((set, get) => ({
       backgroundSync('profile', {
         full_name: updates.name !== undefined ? updates.name : state.profile.name,
         monthly_salary: updates.monthlySalary !== undefined ? updates.monthlySalary : state.profile.monthlySalary,
+        avatar_url: updates.avatar !== undefined ? updates.avatar : state.profile.avatar,
       });
       return newState;
     });

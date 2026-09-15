@@ -25,6 +25,8 @@ import { useTranslation } from '../i18n/index.jsx';
 import useStore from '../store/useStore.js';
 import Modal from '../components/ui/Modal.jsx';
 import HisabLogo from '../components/common/HisabLogo.jsx';
+import UserAvatar from '../components/common/UserAvatar.jsx';
+import { AVATAR_OPTIONS } from '../lib/avatars.js';
 
 export default function Settings() {
   const { t, lang, changeLanguage, formatCurrency } = useTranslation();
@@ -50,6 +52,7 @@ export default function Settings() {
   } = useStore();
 
   const [name, setName] = useState(profile.name || '');
+  const [avatar, setAvatar] = useState(profile?.avatar || 'fox');
   const [salary, setSalary] = useState(profile.monthlySalary ? String(profile.monthlySalary) : '');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -74,6 +77,7 @@ export default function Settings() {
   const handleSaveProfile = () => {
     updateProfile({
       name: name.trim(),
+      avatar,
       monthlySalary: parseFloat(salary) || 0,
     });
     setSaved(true);
@@ -141,14 +145,55 @@ export default function Settings() {
                   </p>
                 </div>
                 <div className="settings-user-badge">
-                  <div className="settings-user-avatar-mini">{userInitial}</div>
+                  <UserAvatar avatar={avatar} name={name || userName} size={30} />
                   <span style={{ fontSize: '11px', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-primary)' }}>
-                    {displayName(userName)}
+                    {displayName(name || userName)}
                   </span>
                 </div>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', marginTop: 'var(--space-3)' }}>
+                {/* Avatar DP Selection */}
+                <div style={{ margin: 0 }}>
+                  <label className="form-label" style={{ marginBottom: 6 }}>
+                    {lang === 'bn' ? 'প্রোফাইল অবতার (DP)' : 'Profile Avatar (DP)'}
+                  </label>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(6, 1fr)',
+                    gap: 6,
+                  }}>
+                    {AVATAR_OPTIONS.map((opt) => {
+                      const isSelected = avatar === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setAvatar(opt.id)}
+                          style={{
+                            background: opt.bg,
+                            border: isSelected ? '2px solid #111411' : '1px solid rgba(0,0,0,0.1)',
+                            outline: isSelected ? '2px solid #5ED21C' : 'none',
+                            outlineOffset: '1.5px',
+                            borderRadius: 'var(--radius-md)',
+                            height: 36,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '18px',
+                            cursor: 'pointer',
+                            transform: isSelected ? 'scale(1.06)' : 'scale(1)',
+                            transition: 'all var(--transition-fast)',
+                          }}
+                          title={lang === 'bn' ? opt.labelBn : opt.labelEn}
+                        >
+                          {opt.emoji}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label">{t('settings.name')}</label>
                   <input

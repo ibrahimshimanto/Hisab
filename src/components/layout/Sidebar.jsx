@@ -18,6 +18,7 @@ import {
 import { useTranslation } from '../../i18n/index.jsx';
 import useStore from '../../store/useStore.js';
 import HisabLogo from '../common/HisabLogo.jsx';
+import UserAvatar from '../common/UserAvatar.jsx';
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, labelKey: 'nav.dashboard' },
@@ -159,9 +160,11 @@ export default function Sidebar() {
           aria-label={lang === 'bn' ? 'সেটিংস ও প্রোফাইল' : 'Settings & Profile'}
         >
           <div className="sidebar-profile-avatar-box">
-            <div className="sidebar-profile-avatar">
-              {userInitial}
-            </div>
+            <UserAvatar
+              avatar={profile?.avatar}
+              name={userName}
+              size={36}
+            />
             <div className="sidebar-profile-gear-pill" title="Settings">
               <Settings size={10} />
             </div>
