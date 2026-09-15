@@ -111,23 +111,27 @@ export default function MobileHeader() {
             gap: 5,
             padding: '4px 9px',
             borderRadius: 'var(--radius-full)',
-            background: user ? 'rgba(94, 210, 28, 0.14)' : 'var(--glass-bg-card)',
-            border: `1px solid ${user ? 'rgba(94, 210, 28, 0.32)' : 'var(--glass-border)'}`,
-            color: user ? '#207208' : 'var(--color-text-secondary)',
+            background: 'rgba(94, 210, 28, 0.14)',
+            border: '1px solid rgba(94, 210, 28, 0.32)',
+            color: '#207208',
             fontSize: '11px',
             fontWeight: 'var(--weight-bold)',
             cursor: 'pointer',
             transition: 'all var(--transition-fast)',
             boxShadow: '0 2px 6px rgba(0, 0, 0, 0.04)',
           }}
-          title={user ? (lang === 'bn' ? 'ক্লাউড সিঙ্ক সক্রিয়' : 'Cloud Sync Active') : (lang === 'bn' ? 'ক্লাউড সিঙ্ক চালু করুন' : 'Enable Cloud Sync')}
+          title={lang === 'bn' ? 'ক্লাউড স্বয়ংক্রিয়ভাবে সিঙ্কড (অনলাইন)' : 'Cloud Auto-Synced • Online'}
         >
-          {user ? (
-            <Cloud size={13} style={{ color: '#5ED21C' }} />
-          ) : (
-            <CloudOff size={13} style={{ opacity: 0.65 }} />
-          )}
-          <span>{user ? (lang === 'bn' ? 'সিঙ্ক' : 'Sync') : (lang === 'bn' ? 'ক্লাউড' : 'Cloud')}</span>
+          <span style={{
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            backgroundColor: '#5ED21C',
+            boxShadow: '0 0 6px #5ED21C',
+            display: 'inline-block',
+          }} />
+          <Cloud size={13} style={{ color: '#5ED21C' }} />
+          <span>{lang === 'bn' ? 'সিঙ্কড' : 'Synced'}</span>
         </button>
 
         {/* Unified Controls Pill (Language + Theme) */}

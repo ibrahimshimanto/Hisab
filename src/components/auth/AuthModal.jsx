@@ -243,19 +243,17 @@ export default function AuthModal() {
                 width: 44,
                 height: 44,
                 borderRadius: 'var(--radius-lg)',
-                background: user
-                  ? 'rgba(94, 210, 28, 0.16)'
-                  : 'rgba(59, 130, 246, 0.12)',
-                color: user ? '#5ED21C' : '#3B82F6',
+                background: 'rgba(94, 210, 28, 0.16)',
+                color: '#5ED21C',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.06)',
-                border: `1px solid ${user ? 'rgba(94, 210, 28, 0.3)' : 'rgba(59, 130, 246, 0.25)'}`,
+                border: '1px solid rgba(94, 210, 28, 0.3)',
                 flexShrink: 0,
               }}
             >
-              {user ? <Cloud size={24} /> : <CloudOff size={24} />}
+              <Cloud size={24} />
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -273,26 +271,19 @@ export default function AuthModal() {
                   style={{
                     fontSize: '10px',
                     fontWeight: 'var(--weight-bold)',
-                    padding: '2px 7px',
+                    padding: '2px 8px',
                     borderRadius: 'var(--radius-full)',
-                    backgroundColor: user
-                      ? 'rgba(94, 210, 28, 0.15)'
-                      : isSupabaseConfigured()
-                      ? 'rgba(59, 130, 246, 0.12)'
-                      : 'rgba(239, 68, 68, 0.12)',
-                    color: user
-                      ? '#207208'
-                      : isSupabaseConfigured()
-                      ? '#2563EB'
-                      : '#DC2626',
+                    backgroundColor: 'rgba(94, 210, 28, 0.15)',
+                    color: '#207208',
+                    border: '1px solid rgba(94, 210, 28, 0.3)',
                     textTransform: 'uppercase',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
                   }}
                 >
-                  {user
-                    ? (lang === 'bn' ? 'সংযুক্ত' : 'Connected')
-                    : isSupabaseConfigured()
-                    ? (lang === 'bn' ? 'রেডি' : 'Ready')
-                    : (lang === 'bn' ? 'লোকাল' : 'Local-First')}
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#5ED21C' }} />
+                  {user ? (lang === 'bn' ? 'অ্যাকাউন্ট সংযুক্ত' : 'Linked') : (lang === 'bn' ? 'অনলাইন সিঙ্ক' : 'Online Synced')}
                 </span>
               </div>
               <p
@@ -303,8 +294,8 @@ export default function AuthModal() {
                 }}
               >
                 {user
-                  ? (lang === 'bn' ? 'সকল ডিভাইসে আপনার হিসাব সংরক্ষিত ও সিঙ্ক হচ্ছে।' : 'Your finances are encrypted & synced across all your devices.')
-                  : (lang === 'bn' ? 'লগইন করে রিয়েল-টাইম ক্লাউড ব্যাকআপ সক্রিয় করুন।' : 'Sign in to enable real-time encrypted cloud sync & backup.')}
+                  ? (lang === 'bn' ? 'আপনার অ্যাকাউন্টের সাথে ক্লাউড সিঙ্ক চালু রয়েছে।' : 'Your finances are linked to your profile and syncing across devices.')
+                  : (lang === 'bn' ? 'স্বয়ংক্রিয় অনলাইন ক্লাউড সিঙ্ক চালু রয়েছে। নির্দিষ্ট প্রোফাইলে যুক্ত করতে সাইন-ইন করুন।' : 'Real-time online cloud sync is active. Sign in anytime to link to your profile.')}
               </p>
             </div>
           </div>
@@ -532,8 +523,8 @@ export default function AuthModal() {
                   setLoading(false);
                   setSuccessMsg(
                     lang === 'bn'
-                      ? 'লগআউট সম্পন্ন হয়েছে। অ্যাপটি লোকাল মোডে চলবে।'
-                      : 'Signed out. App is running in Local-First mode.'
+                      ? 'লগআউট সম্পন্ন হয়েছে। অ্যাপটি অনলাইন ক্লাউড সিঙ্ক মোডে সচল রয়েছে।'
+                      : 'Signed out. App continues running in online cloud-synced mode.'
                   );
                 }}
                 disabled={loading}
@@ -582,9 +573,9 @@ export default function AuthModal() {
                   </span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                  <Sparkles size={18} style={{ color: '#F59E0B' }} />
+                  <Sparkles size={18} style={{ color: '#5ED21C' }} />
                   <span style={{ fontSize: '11px', fontWeight: 'var(--weight-semibold)', color: 'var(--color-text-secondary)' }}>
-                    {lang === 'bn' ? 'অফলাইন রেডি' : 'Offline First'}
+                    {lang === 'bn' ? 'অটো ক্লাউড সিঙ্ক' : 'Auto Cloud Sync'}
                   </span>
                 </div>
               </div>
@@ -881,9 +872,9 @@ export default function AuthModal() {
             justifyContent: 'space-between',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', color: 'var(--color-text-tertiary)' }}>
-            <Lock size={12} />
-            <span>Local-First: Works 100% Offline</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', color: 'var(--color-text-secondary)' }}>
+            <CheckCircle2 size={13} style={{ color: '#5ED21C' }} />
+            <span>Online: Supabase Cloud Synced</span>
           </div>
 
           <button
@@ -892,7 +883,7 @@ export default function AuthModal() {
             className="btn btn-ghost btn-sm"
             style={{ fontSize: '12px' }}
           >
-            {lang === 'bn' ? 'অফলাইনে থাকুন' : 'Continue Offline'}
+            {lang === 'bn' ? 'বন্ধ করুন' : 'Close'}
           </button>
         </div>
       </div>
