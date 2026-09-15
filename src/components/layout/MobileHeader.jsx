@@ -3,6 +3,7 @@ import { Sun, Moon, Globe, Settings as SettingsIcon, Leaf, Compass, Flame, Cloud
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '../../i18n/index.jsx';
 import useStore from '../../store/useStore.js';
+import UserAvatar from '../common/UserAvatar.jsx';
 
 export default function MobileHeader() {
   const navigate = useNavigate();
@@ -32,7 +33,6 @@ export default function MobileHeader() {
   }, [lang]);
 
   const userName = profile?.name || (lang === 'bn' ? 'ব্যবহারকারী' : 'User');
-  const userInitial = userName.charAt(0).toUpperCase();
 
   const displayName = useMemo(() => {
     if (!profile?.name) return lang === 'bn' ? 'ব্যবহারকারী' : 'User';
@@ -57,23 +57,11 @@ export default function MobileHeader() {
         onClick={() => navigate('/settings')}
         title={lang === 'bn' ? 'প্রোফাইল ও সেটিংস' : 'Profile & Settings'}
       >
-        <div style={{
-          width: 38,
-          height: 38,
-          borderRadius: 'var(--radius-full)',
-          background: 'linear-gradient(135deg, #111411 0%, #2A302A 100%)',
-          color: '#FFFFFF',
-          fontWeight: 'var(--weight-black)',
-          fontSize: 'var(--text-sm)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 3px 10px rgba(17, 20, 17, 0.25)',
-          border: '1.5px solid #5ED21C',
-          flexShrink: 0,
-        }}>
-          {userInitial}
-        </div>
+        <UserAvatar
+          avatar={profile?.avatar}
+          name={userName}
+          size={38}
+        />
         <div className="mobile-greeting" style={{ minWidth: 0, overflow: 'hidden' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span className="mobile-greeting-sub">{greeting}</span>
