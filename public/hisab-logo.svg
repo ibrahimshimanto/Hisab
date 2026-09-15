@@ -1,0 +1,29 @@
+<svg width="240" height="70" viewBox="0 0 240 70" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- The Growth 'h' Logo (Two-Tone Brand Edition) -->
+  <g transform="translate(10, 5) scale(0.6)">
+    <!-- Top Left Stem (Deep Charcoal #111111) -->
+    <rect x="20" y="16" width="16" height="44" rx="2" fill="#111111" />
+
+    <!-- Arch (Deep Charcoal with Diagonal connection) -->
+    <path
+      d="M 36 38 C 42 29.5 50 27 60 27 C 67.5 27 73 30.5 75.5 36.5 L 66 44 C 64.5 41 61.5 38.5 57.5 38.5 C 50.5 38.5 44 43 42 50 L 36 47 Z"
+      fill="#111111"
+    />
+
+    <!-- Bar 1 (Short Growth Bar at bottom-left #9EFF33) -->
+    <rect x="20" y="66" width="16" height="18" rx="2" fill="#9EFF33" />
+
+    <!-- Bar 2 (Medium Growth Bar in center #9EFF33) -->
+    <rect x="42" y="48" width="16" height="36" rx="2" fill="#9EFF33" />
+
+    <!-- Bar 3 (Right Growth Leg with angled top #9EFF33) -->
+    <path
+      d="M 62 47.5 L 76.5 37.5 C 77.5 39 78 41 78 43.5 L 78 82 C 78 83.1 77.1 84 76 84 L 64 84 C 62.9 84 62 83.1 62 82 Z"
+      fill="#9EFF33"
+    />
+  </g>
+
+  <!-- Wordmark "Hisab" in Plus Jakarta Sans -->
+  <text x="80" y="42" font-family="'Plus Jakarta Sans', -apple-system, sans-serif" font-size="34" font-weight="800" fill="#111111" letter-spacing="-0.035em">Hisab</text>
+  <text x="81" y="55" font-family="'Plus Jakarta Sans', -apple-system, sans-serif" font-size="9" font-weight="700" fill="#667064" letter-spacing="0.12em">PERSONAL FINANCE</text>
+</svg>

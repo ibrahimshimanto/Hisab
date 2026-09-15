@@ -1,0 +1,260 @@
+/* ============================================
+   Hisab (হিসাব) — Neo-Fintech Luxury Design Tokens
+   Bold, tactile, and responsive financial design
+   ============================================ */
+
+:root {
+  /* ---- Primary Brand Accents (#5ED21C Electric Lime) ---- */
+  --color-primary: #5ED21C;
+  --color-primary-light: #77E53B;
+  --color-primary-neon: #5ED21C;
+  --color-primary-lighter: #F1FCEE;
+  --color-primary-dark: #47A514;
+  --color-primary-rgb: 94, 210, 28;
+  --color-primary-glow: rgba(94, 210, 28, 0.38);
+
+  /* ---- Secondary Accents (Electric Violet & Indigo) ---- */
+  --color-secondary: #6366F1;
+  --color-secondary-light: #818CF8;
+  --color-secondary-neon: #A855F7;
+  --color-secondary-lighter: #EEF2FF;
+  --color-secondary-rgb: 99, 102, 241;
+
+  /* ---- Financial Semantic Accents ---- */
+  --color-income: #207208;
+  --color-income-light: #EBFBDD;
+  --color-income-rgb: 32, 114, 8;
+  --color-expense: #F43F5E;
+  --color-expense-light: #FFE4E6;
+  --color-expense-rgb: 244, 63, 94;
+  --color-warning: #D97706;
+  --color-warning-light: #FEF3C7;
+  --color-info: #2563EB;
+  --color-info-light: #DBEAFE;
+
+  /* ---- Neutral Palette (Light Mode - #111411 Jet Black & #FFFFFF Crisp White) ---- */
+  --color-dark: #111411;
+  --color-dark-rgb: 17, 20, 17;
+  --color-bg: #F6F8F4;
+  --color-bg-elevated: #FFFFFF;
+  --color-bg-hover: #EFF3EC;
+  --color-bg-active: #E4EAE0;
+  --color-surface: rgba(255, 255, 255, 0.94);
+  --color-surface-secondary: #F1F5EE;
+  --color-border: #E5ECE1;
+  --color-border-light: #EFF3EC;
+  --color-border-subtle: rgba(17, 20, 17, 0.08);
+  --color-text-primary: #111411;
+  --color-text-secondary: #3B453A;
+  --color-text-tertiary: #556054;
+  --color-text-inverse: #FFFFFF;
+
+  /* ---- Source Brand Identities ---- */
+  --color-bkash: #E2136E;
+  --color-bkash-gradient: linear-gradient(135deg, #E2136E 0%, #FF3388 100%);
+  --color-nagad: #F7941D;
+  --color-nagad-gradient: linear-gradient(135deg, #F7941D 0%, #ED1C24 100%);
+  --color-bank: #2563EB;
+  --color-bank-gradient: linear-gradient(135deg, #1D4ED8 0%, #3B82F6 100%);
+  --color-wallet: #5ED21C;
+  --color-wallet-gradient: linear-gradient(135deg, #47A514 0%, #5ED21C 100%);
+
+  --color-mfs: #E2136E;
+  --color-mfs-light: #FCE7F3;
+  --color-bank-light: #DBEAFE;
+  --color-wallet-light: #F1FCEE;
+
+  /* ---- Category Vivid Colors ---- */
+  --cat-rent: #F43F5E;
+  --cat-food: #F97316;
+  --cat-transport: #EAB308;
+  --cat-utilities: #10B981;
+  --cat-entertainment: #8B5CF6;
+  --cat-health: #EC4899;
+  --cat-education: #0EA5E9;
+  --cat-shopping: #D946EF;
+  --cat-subscriptions: #6366F1;
+  --cat-salary: #10B981;
+  --cat-freelance: #06B6D4;
+  --cat-business: #14B8A6;
+  --cat-investment: #F59E0B;
+  --cat-gift: #FB7185;
+  --cat-other: #64748B;
+
+  /* ---- Brand Guidelines v1.0 Palette ---- */
+  --color-brand-lime: #9EFF33;
+  --color-brand-charcoal: #111111;
+  --color-brand-mist: #F4F7F2;
+  --color-brand-income: #2D5BFF;
+  --color-brand-expense: #FF3B68;
+  --color-brand-savings: #27C08D;
+  --color-brand-alert: #FF9500;
+
+  /* ---- Typography (Plus Jakarta Sans + Inter + Noto Sans Bengali) ---- */
+  --font-primary: 'Plus Jakarta Sans', 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-heading: 'Plus Jakarta Sans', sans-serif;
+  --font-data: 'Inter', 'Outfit', monospace;
+  --font-bengali: 'Noto Sans Bengali', 'Plus Jakarta Sans', sans-serif;
+
+  --text-xs: 0.75rem;     /* 12px */
+  --text-sm: 0.8125rem;   /* 13px */
+  --text-base: 0.875rem;  /* 14px */
+  --text-md: 1rem;        /* 16px */
+  --text-lg: 1.125rem;    /* 18px */
+  --text-xl: 1.25rem;     /* 20px */
+  --text-2xl: 1.5rem;     /* 24px */
+  --text-3xl: 2rem;       /* 32px */
+  --text-4xl: 2.5rem;     /* 40px */
+  --text-5xl: 3.25rem;    /* 52px */
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-black: 800;
+
+  --leading-tight: 1.15;
+  --leading-normal: 1.45;
+  --leading-relaxed: 1.6;
+
+  /* ---- Spacing ---- */
+  --space-0: 0;
+  --space-1: 0.25rem;   /* 4px */
+  --space-2: 0.5rem;    /* 8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-5: 1.25rem;   /* 20px */
+  --space-6: 1.5rem;    /* 24px */
+  --space-8: 2rem;      /* 32px */
+  --space-10: 2.5rem;   /* 40px */
+  --space-12: 3rem;     /* 48px */
+  --space-16: 4rem;     /* 64px */
+
+  /* ---- Border Radius ---- */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-2xl: 32px;
+  --radius-full: 9999px;
+
+  /* ---- Spring Physics & Micro-Interactions ---- */
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --transition-fast: 120ms var(--ease-spring);
+  --transition-base: 220ms var(--ease-spring);
+  --transition-slow: 350ms var(--ease-spring);
+  --tap-scale: scale(0.96);
+
+  /* ---- Shadows ---- */
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-sm: 0 2px 4px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 6px 12px -2px rgba(15, 23, 42, 0.08), 0 3px 6px -2px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 16px 24px -4px rgba(15, 23, 42, 0.1), 0 6px 12px -4px rgba(15, 23, 42, 0.05);
+  --shadow-xl: 0 24px 40px -8px rgba(15, 23, 42, 0.14), 0 12px 18px -4px rgba(15, 23, 42, 0.06);
+
+  /* ---- Glassmorphism Tokens (Light Mode - Clean Crisp White & Soft Lime Shadows) ---- */
+  --glass-bg: rgba(255, 255, 255, 0.92);
+  --glass-bg-subtle: rgba(255, 255, 255, 0.75);
+  --glass-bg-elevated: #FFFFFF;
+  --glass-bg-card: #FFFFFF;
+  --glass-border: rgba(17, 20, 17, 0.08);
+  --glass-border-subtle: rgba(17, 20, 17, 0.05);
+  --glass-shadow: 0 8px 26px -4px rgba(17, 20, 17, 0.05), 0 2px 6px -1px rgba(17, 20, 17, 0.02);
+  --glass-shadow-hover: 0 14px 34px -6px rgba(17, 20, 17, 0.09), 0 4px 10px -2px rgba(17, 20, 17, 0.04);
+  --glass-shadow-elevated: 0 22px 50px -10px rgba(17, 20, 17, 0.12), 0 8px 20px -4px rgba(17, 20, 17, 0.05);
+  --glass-blur: blur(20px);
+  --glass-blur-heavy: blur(28px);
+  --glass-saturate: saturate(190%);
+
+  /* ---- Z-Index ---- */
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-modal-backdrop: 9998;
+  --z-modal: 9999;
+  --z-toast: 10000;
+  --z-tooltip: 10100;
+
+  /* ---- Fluid Typography Tokens ---- */
+  --text-hero-balance: clamp(1.75rem, 6.5vw, 3.25rem);
+  --text-title-fluid: clamp(1.35rem, 3.5vw, 2rem);
+  --text-body-fluid: clamp(0.8125rem, 1.2vw, 0.9375rem);
+
+  /* ---- Layout & Responsive Boundaries ---- */
+  --sidebar-width: 270px;
+  --sidebar-collapsed-width: 76px;
+  --bottomnav-height: 68px;
+  --header-height: 60px;
+  --content-max-width: 1400px;
+  --content-max-width-wide: 1600px;
+  --content-max-width-tv: 2200px;
+
+  /* ---- Safe Area Insets (Notch, Dynamic Island, Home Indicator) ---- */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /* ---- Adaptive Card Tokens ---- */
+  --source-card-width: clamp(200px, 68vw, 260px);
+  --source-card-width-mobile: clamp(180px, 62vw, 240px);
+  --touch-target-min: 44px;
+}
+
+/* ============================================
+   Dark Mode — Deep Obsidian & Neon Glow
+   ============================================ */
+[data-theme="dark"] {
+  --color-primary: #5ED21C;
+  --color-primary-light: #77E53B;
+  --color-primary-neon: #5ED21C;
+  --color-primary-lighter: rgba(94, 210, 28, 0.15);
+  --color-primary-dark: #47A514;
+  --color-primary-rgb: 94, 210, 28;
+  --color-primary-glow: rgba(94, 210, 28, 0.4);
+
+  --color-secondary: #818CF8;
+  --color-secondary-lighter: #1E1B4B;
+
+  --color-income: #5ED21C;
+  --color-income-light: rgba(94, 210, 28, 0.15);
+  --color-income-rgb: 94, 210, 28;
+  --color-expense: #FB7185;
+  --color-expense-light: #4C0519;
+  --color-warning-light: #451A03;
+  --color-info-light: #172554;
+
+  --color-bg: #07080B;
+  --color-bg-elevated: #111319;
+  --color-bg-hover: #191C24;
+  --color-bg-active: #222632;
+  --color-surface: rgba(17, 19, 25, 0.78);
+  --color-surface-secondary: #161922;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-light: rgba(255, 255, 255, 0.05);
+  --color-text-primary: #F8FAFC;
+  --color-text-secondary: #94A3B8;
+  --color-text-tertiary: #64748B;
+  --color-text-inverse: #07080B;
+
+  --color-mfs-light: #370B24;
+  --color-bank-light: #172554;
+  --color-wallet-light: #064E3B;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 6px 12px -2px rgba(0, 0, 0, 0.5), 0 3px 6px -2px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 16px 24px -4px rgba(0, 0, 0, 0.6), 0 6px 12px -4px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 28px 48px -8px rgba(0, 0, 0, 0.75), 0 12px 20px -4px rgba(0, 0, 0, 0.5);
+
+  /* ---- Glassmorphism Tokens (Dark Mode) ---- */
+  --glass-bg: rgba(17, 19, 26, 0.75);
+  --glass-bg-subtle: rgba(13, 15, 21, 0.6);
+  --glass-bg-elevated: rgba(22, 25, 35, 0.88);
+  --glass-bg-card: linear-gradient(135deg, rgba(24, 27, 38, 0.82) 0%, rgba(14, 16, 23, 0.72) 100%);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-border-subtle: rgba(255, 255, 255, 0.06);
+  --glass-shadow: 0 12px 36px 0 rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.12);
+  --glass-shadow-hover: 0 20px 48px 0 rgba(0, 0, 0, 0.65), inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
+  --glass-shadow-elevated: 0 28px 60px 0 rgba(0, 0, 0, 0.8), inset 0 1px 1px 0 rgba(255, 255, 255, 0.16);
+}
