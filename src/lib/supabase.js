@@ -7,8 +7,8 @@ const DEFAULT_SUPABASE_URL = 'https://wdxcfikuufscmweaqxyb.supabase.co';
 const DEFAULT_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndkeGNmaWt1dWZzY213ZWFxeHliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0ODc0NDksImV4cCI6MjEwNTA2MzQ0OX0.j2e49fbNzhfexiELgyVA6AtvhKONesVSZJhGXNvAJfs';
 
 export function getSupabaseConfig() {
-  const envUrl = import.meta.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
-  const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || DEFAULT_ANON_KEY;
+  const envUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) || DEFAULT_SUPABASE_URL;
+  const envKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || DEFAULT_ANON_KEY;
 
   const storedUrl = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_URL_KEY) : null;
   const storedKey = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_ANON_KEY) : null;
