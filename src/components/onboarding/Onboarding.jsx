@@ -35,7 +35,7 @@ const ACCOUNT_TEMPLATES = [
 
 export default function Onboarding({ onComplete }) {
   const { t, lang, changeLanguage } = useTranslation();
-  const { addAccount, updateProfile, setFinancialMode, completeOnboarding } = useStore();
+  const { initializeOnboardingAccounts, updateProfile, setFinancialMode, completeOnboarding } = useStore();
 
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
@@ -122,9 +122,8 @@ export default function Onboarding({ onComplete }) {
       setFinancialMode(chosenGoal.mode);
     }
 
-    if (!isSkipping && finalAccounts.length > 0) {
-      finalAccounts.forEach((acc) => addAccount(acc));
-    }
+    // Initialize user accounts cleanly (replaces demo data)
+    initializeOnboardingAccounts(isSkipping ? [] : finalAccounts);
 
     // Complete onboarding in store & localStorage
     completeOnboarding();
@@ -291,24 +290,37 @@ export default function Onboarding({ onComplete }) {
                   </span>
                 </label>
 
-                {/* Hero Avatar Preview */}
+                {/* Hero Avatar Card */}
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
-                  padding: '12px 16px',
+                  padding: '14px 18px',
                   background: 'var(--color-surface-secondary)',
                   borderRadius: 'var(--radius-xl)',
-                  marginBottom: 10,
+                  marginBottom: 12,
                   border: '1px solid var(--color-border-light)',
                   gap: 16,
+                  position: 'relative',
+                  overflow: 'hidden',
                 }}>
+                  {/* Subtle Ambient Radial Glow matching active avatar */}
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    right: 0,
+                    width: 150,
+                    height: '100%',
+                    background: `radial-gradient(circle at right center, ${activeAvatarObj.shadowColor || 'rgba(94, 210, 28, 0.2)'} 0%, transparent 75%)`,
+                    pointerEvents: 'none',
+                  }} />
+
                   <div style={{ position: 'relative' }}>
                     <UserAvatar
                       avatar={selectedAvatar}
                       name={name}
-                      size={64}
+                      size={66}
                       style={{
-                        boxShadow: '0 0 0 3px #5ED21C, 0 8px 24px rgba(94, 210, 28, 0.35)',
+                        boxShadow: `0 0 0 3px #5ED21C, 0 8px 24px ${activeAvatarObj.shadowColor || 'rgba(94, 210, 28, 0.35)'}`,
                         transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
                       }}
                     />
@@ -316,26 +328,48 @@ export default function Onboarding({ onComplete }) {
                       position: 'absolute',
                       bottom: -2,
                       right: -2,
-                      width: 20,
-                      height: 20,
+                      width: 22,
+                      height: 22,
                       borderRadius: '50%',
                       background: '#5ED21C',
                       color: '#111411',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      boxShadow: '0 2px 6px rgba(0, 0, 0, 0.2)',
+                      boxShadow: '0 2px 6px rgba(0, 0, 0, 0.25)',
                     }}>
-                      <Check size={11} strokeWidth={3} />
+                      <Check size={12} strokeWidth={3} />
                     </div>
                   </div>
-                  <div>
+                  <div style={{ zIndex: 1, minWidth: 0, flex: 1 }}>
                     <div style={{ fontSize: '15px', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-primary)' }}>
                       {name.trim() || (lang === 'bn' ? 'আপনার প্রোফাইল' : 'Your Profile')}
                     </div>
-                    <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                      <Sparkles size={12} style={{ color: '#5ED21C' }} />
-                      <span>{lang === 'bn' ? activeAvatarObj.labelBn : activeAvatarObj.labelEn}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+                      <span style={{
+                        fontSize: '12px',
+                        fontWeight: 'var(--weight-semibold)',
+                        color: 'var(--color-text-secondary)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                      }}>
+                        <Sparkles size={13} style={{ color: '#5ED21C' }} />
+                        {lang === 'bn' ? activeAvatarObj.labelBn : activeAvatarObj.labelEn}
+                      </span>
+                      {activeAvatarObj.traitEn && (
+                        <span style={{
+                          fontSize: '10px',
+                          fontWeight: 'var(--weight-bold)',
+                          padding: '2px 7px',
+                          borderRadius: 'var(--radius-full)',
+                          background: 'rgba(94, 210, 28, 0.12)',
+                          color: '#207208',
+                          border: '1px solid rgba(94, 210, 28, 0.25)',
+                        }}>
+                          {lang === 'bn' ? activeAvatarObj.traitBn : activeAvatarObj.traitEn}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -355,25 +389,24 @@ export default function Onboarding({ onComplete }) {
                         onClick={() => setSelectedAvatar(opt.id)}
                         style={{
                           background: opt.bg,
-                          border: isSelected ? '2px solid #111411' : '1px solid rgba(0, 0, 0, 0.08)',
-                          outline: isSelected ? '2.5px solid #5ED21C' : 'none',
-                          outlineOffset: '2px',
+                          border: 'none',
                           borderRadius: 'var(--radius-lg)',
                           aspectRatio: '1',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: '22px',
+                          fontSize: '24px',
                           cursor: 'pointer',
-                          transform: isSelected ? 'scale(1.1)' : 'scale(1)',
+                          transform: isSelected ? 'scale(1.12)' : 'scale(1)',
                           transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
                           boxShadow: isSelected
-                            ? '0 6px 16px rgba(94, 210, 28, 0.35)'
-                            : '0 2px 5px rgba(0, 0, 0, 0.06)',
+                            ? `0 0 0 2px var(--color-surface), 0 0 0 4.5px #5ED21C, 0 8px 24px ${opt.shadowColor || 'rgba(94, 210, 28, 0.4)'}`
+                            : 'inset 0 1px 1px rgba(255, 255, 255, 0.3), 0 2px 6px rgba(0, 0, 0, 0.08)',
+                          zIndex: isSelected ? 2 : 1,
                         }}
-                        title={lang === 'bn' ? opt.labelBn : opt.labelEn}
+                        title={`${lang === 'bn' ? opt.labelBn : opt.labelEn} (${lang === 'bn' ? opt.traitBn : opt.traitEn})`}
                       >
-                        <span style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.15))' }}>
+                        <span style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.18))' }}>
                           {opt.emoji}
                         </span>
                       </button>
@@ -393,11 +426,11 @@ export default function Onboarding({ onComplete }) {
                     fontWeight: 'var(--weight-bold)',
                     color: '#DC2626',
                     backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                    padding: '2px 6px',
+                    padding: '2px 7px',
                     borderRadius: 'var(--radius-full)',
                     border: '1px solid rgba(239, 68, 68, 0.25)',
                   }}>
-                    {lang === 'bn' ? 'আবশ্যক *' : 'Required *'}
+                    {lang === 'bn' ? 'আবশ্যক *' : 'Mandatory *'}
                   </span>
                 </div>
 
@@ -410,11 +443,17 @@ export default function Onboarding({ onComplete }) {
                     setName(e.target.value);
                     if (e.target.value.trim()) setNameError('');
                   }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleNextStep();
+                    }
+                  }}
                   placeholder={lang === 'bn' ? 'যেমন: ইব্রাহিম' : 'e.g. Ibrahim'}
                   style={{
                     height: 44,
                     borderColor: nameError ? '#EF4444' : undefined,
-                    boxShadow: nameError ? '0 0 0 3px rgba(239, 68, 68, 0.15)' : undefined,
+                    boxShadow: nameError ? '0 0 0 3px rgba(239, 68, 68, 0.2)' : undefined,
                   }}
                   autoFocus
                 />
@@ -671,6 +710,12 @@ export default function Onboarding({ onComplete }) {
                     type="text"
                     value={accName}
                     onChange={(e) => setAccName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddCustomAccount();
+                      }
+                    }}
                     placeholder={accType === 'mfs' ? 'bKash / Nagad' : accType === 'bank' ? 'City Bank' : 'Cash'}
                     style={{ height: 40 }}
                   />
@@ -680,6 +725,12 @@ export default function Onboarding({ onComplete }) {
                     type="number"
                     value={accBalance}
                     onChange={(e) => setAccBalance(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddCustomAccount();
+                      }
+                    }}
                     placeholder="Initial Balance (৳0)"
                     style={{ height: 40 }}
                   />
@@ -774,12 +825,15 @@ export default function Onboarding({ onComplete }) {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
-                backgroundColor: '#111411',
-                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
+                cursor: 'pointer',
               }}
             >
-              <span>{lang === 'bn' ? 'ড্যাশবোর্ডে প্রবেশ করুন' : 'Go to Dashboard'}</span>
-              <Check size={16} strokeWidth={3} style={{ color: '#5ED21C' }} />
+              <span>
+                {accounts.length > 0 || accName.trim()
+                  ? (lang === 'bn' ? 'সংরক্ষণ করুন ও ড্যাশবোর্ডে যান' : 'Save & Go to Dashboard')
+                  : (lang === 'bn' ? 'ড্যাশবোর্ডে প্রবেশ করুন' : 'Go to Dashboard')}
+              </span>
+              <Check size={16} strokeWidth={3} />
             </button>
           )}
         </div>

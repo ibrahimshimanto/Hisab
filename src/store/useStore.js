@@ -1000,6 +1000,57 @@ const useStore = create((set, get) => ({
   },
 
   // ---- Onboarding ----
+  initializeOnboardingAccounts: (accountsList = []) => {
+    let createdAccounts = [];
+    let initialTxns = [];
+
+    if (Array.isArray(accountsList) && accountsList.length > 0) {
+      createdAccounts = accountsList.map((acc) => ({
+        id: generateId(),
+        name: acc.name.trim(),
+        type: acc.type || 'mfs',
+        balance: parseFloat(acc.balance) || 0,
+        createdAt: new Date().toISOString(),
+      }));
+
+      initialTxns = createdAccounts
+        .filter((acc) => acc.balance > 0)
+        .map((acc) => ({
+          id: generateId(),
+          type: 'income',
+          amount: acc.balance,
+          categoryId: 'salary',
+          accountId: acc.id,
+          date: new Date().toISOString(),
+          note: `Starting balance for ${acc.name}`,
+        }));
+    } else {
+      // Skipped / add later: provide single fresh Cash Wallet (৳0) with clean transactions
+      createdAccounts = [
+        {
+          id: generateId(),
+          name: 'Cash Wallet',
+          type: 'wallet',
+          balance: 0,
+          createdAt: new Date().toISOString(),
+        },
+      ];
+      initialTxns = [];
+    }
+
+    set({
+      accounts: createdAccounts,
+      transactions: initialTxns,
+      adjustments: [],
+    });
+
+    setTimeout(() => saveToStorage(get()), 0);
+    backgroundSync('accounts', createdAccounts);
+    if (initialTxns.length > 0) {
+      initialTxns.forEach((txn) => backgroundSync('transaction', txn));
+    }
+  },
+
   completeOnboarding: () => {
     set({ onboardingComplete: true });
     setTimeout(() => saveToStorage(get()), 0);

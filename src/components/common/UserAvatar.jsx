@@ -22,7 +22,7 @@ export default function UserAvatar({
     justifyContent: 'center',
     flexShrink: 0,
     userSelect: 'none',
-    boxShadow: '0 3px 10px rgba(0, 0, 0, 0.15)',
+    boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.4), 0 3px 10px rgba(0, 0, 0, 0.15)',
     border: border || 'none',
     ...style,
   };
@@ -37,9 +37,9 @@ export default function UserAvatar({
           fontSize: `${Math.round(size * 0.52)}px`,
           lineHeight: 1,
         }}
-        title={config.labelEn}
+        title={`${config.labelEn} • ${config.traitEn || ''}`}
       >
-        <span>{config.emoji}</span>
+        <span style={{ filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.2))' }}>{config.emoji}</span>
       </div>
     );
   }
