@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   TrendingUp,
@@ -43,6 +43,10 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { t, lang, formatCurrency, formatDate } = useTranslation();
   const { accounts, transactions, categories, openQuickAdd, theme, financialMode, modeSettings, savingsGoals, openSavingsModal, openCalculatorModal, startTour } = useStore();
+  
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   
   // Persistent balance visibility
   const [showBalance, setShowBalance] = useState(() => {

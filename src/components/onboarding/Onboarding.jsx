@@ -182,6 +182,7 @@ export default function Onboarding({ onComplete }) {
 
     // Complete onboarding in store & localStorage
     completeOnboarding();
+    window.scrollTo(0, 0);
     onComplete?.();
   };
 
