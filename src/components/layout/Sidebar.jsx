@@ -97,22 +97,8 @@ export default function Sidebar() {
           </NavLink>
         ))}
 
-        {/* Quick Toggles: Cloud Sync, Language & Theme */}
+        {/* Quick Toggles: Language & Theme */}
         <div className="sidebar-quick-toggles">
-          <button
-            type="button"
-            className="sidebar-toggle-action"
-            onClick={() => setAuthModalOpen(true)}
-            title={sidebarCollapsed ? (lang === 'bn' ? 'অনলাইন সিঙ্কড' : 'Online & Cloud Synced') : (lang === 'bn' ? 'ক্লাউড সিঙ্ক অ্যাকাউন্ট' : 'Cloud Sync & Account')}
-            aria-label="Cloud Sync"
-          >
-            <Cloud size={16} className="sidebar-toggle-icon" style={{ color: '#5ED21C' }} />
-            {!sidebarCollapsed && (
-              <span className="sidebar-toggle-label" style={{ color: '#5ED21C' }}>
-                {lang === 'bn' ? 'অনলাইন' : 'Synced'}
-              </span>
-            )}
-          </button>
 
           <button
             type="button"
@@ -188,9 +174,8 @@ export default function Sidebar() {
                 <span>{userName}</span>
                 <Settings size={12} style={{ color: isSettingsActive ? '#5ED21C' : 'var(--color-text-tertiary)', flexShrink: 0 }} />
               </div>
-              <div style={{ fontSize: '10px', color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
-                <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#5ED21C', boxShadow: '0 0 4px #5ED21C', display: 'inline-block' }} />
-                <span>{lang === 'bn' ? 'অনলাইন সিঙ্কড' : 'Cloud Synced'} • {lang === 'bn' ? 'সেটিংস' : 'Settings'}</span>
+              <div style={{ fontSize: '10px', color: 'var(--color-text-tertiary)', marginTop: 1 }}>
+                <span>{lang === 'bn' ? 'সেটিংস ও প্রোফাইল' : 'Settings & Profile'}</span>
               </div>
             </div>
           )}

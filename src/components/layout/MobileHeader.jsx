@@ -89,39 +89,6 @@ export default function MobileHeader() {
 
       {/* Right: Quick Action Controls */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-        {/* Cloud Sync Status Pill */}
-        <button
-          type="button"
-          onClick={() => setAuthModalOpen(true)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 5,
-            padding: '4px 9px',
-            borderRadius: 'var(--radius-full)',
-            background: 'rgba(94, 210, 28, 0.14)',
-            border: '1px solid rgba(94, 210, 28, 0.32)',
-            color: '#207208',
-            fontSize: '11px',
-            fontWeight: 'var(--weight-bold)',
-            cursor: 'pointer',
-            transition: 'all var(--transition-fast)',
-            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.04)',
-          }}
-          title={lang === 'bn' ? 'ক্লাউড স্বয়ংক্রিয়ভাবে সিঙ্কড (অনলাইন)' : 'Cloud Auto-Synced • Online'}
-        >
-          <span style={{
-            width: 6,
-            height: 6,
-            borderRadius: '50%',
-            backgroundColor: '#5ED21C',
-            boxShadow: '0 0 6px #5ED21C',
-            display: 'inline-block',
-          }} />
-          <Cloud size={13} style={{ color: '#5ED21C' }} />
-          <span>{lang === 'bn' ? 'সিঙ্কড' : 'Synced'}</span>
-        </button>
-
         {/* Unified Controls Pill (Language + Theme) */}
         <div style={{
           display: 'flex',

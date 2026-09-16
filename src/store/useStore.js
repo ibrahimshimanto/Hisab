@@ -312,7 +312,7 @@ const initialState = {
   sidebarCollapsed: false,
   user: null,
   session: null,
-  isAuthLoading: false,
+  isAuthLoading: true,
   syncStatus: 'synced', // 'synced' | 'syncing' | 'offline' | 'error'
   lastSyncedAt: new Date().toISOString(),
   authModalOpen: false,
@@ -351,7 +351,7 @@ const useStore = create((set, get) => ({
   // ---- Cloud Sync & Auth State (Always Online & Synced) ----
   user: null,
   session: null,
-  isAuthLoading: false,
+  isAuthLoading: true,
   syncStatus: 'synced',
   lastSyncedAt: new Date().toISOString(),
   authModalOpen: false,
@@ -452,6 +452,9 @@ const useStore = create((set, get) => ({
         budgets: cloudData.budgets?.length > 0 ? cloudData.budgets : state.budgets,
         savingsGoals: cloudData.savingsGoals?.length > 0 ? cloudData.savingsGoals : state.savingsGoals,
         recurringBills: cloudData.recurringBills?.length > 0 ? cloudData.recurringBills : state.recurringBills,
+        onboardingComplete: cloudData.onboardingComplete !== undefined
+          ? cloudData.onboardingComplete
+          : (cloudData.accounts?.length > 0 ? true : state.onboardingComplete),
       };
       setTimeout(() => saveToStorage(get()), 0);
       return newState;
@@ -1000,6 +1003,10 @@ const useStore = create((set, get) => ({
   completeOnboarding: () => {
     set({ onboardingComplete: true });
     setTimeout(() => saveToStorage(get()), 0);
+    const user = get().user;
+    if (user?.id) {
+      backgroundSync('profile', { onboarding_complete: true });
+    }
   },
 
   // ---- Savings Goals & Locked Funds (Phase 1d) ----
