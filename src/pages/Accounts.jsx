@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   Plus, Wallet, Building2, Smartphone, Edit2, Trash2,
   ArrowRightLeft, History, SlidersHorizontal, Sparkles, CheckCircle2,
-  ChevronDown,
+  ChevronDown, MoreVertical,
 } from 'lucide-react';
 import { useTranslation } from '../i18n/index.jsx';
 import useStore from '../store/useStore.js';
@@ -44,6 +44,7 @@ export default function Accounts() {
   const [editingAccount, setEditingAccount] = useState(null);
   const [selectedAccountId, setSelectedAccountId] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [openMenuAccountId, setOpenMenuAccountId] = useState(null);
 
   // Form state
   const [formType, setFormType] = useState('mfs');
@@ -244,6 +245,15 @@ export default function Accounts() {
                   <span>{t('accounts.transfer')}</span>
                 </button>
               )}
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={openAdd}
+                style={{ gap: 5 }}
+              >
+                <Plus size={15} strokeWidth={2.5} />
+                <span>{t('accounts.addAccount')}</span>
+              </button>
             </div>
           </div>
         </div>
@@ -293,7 +303,7 @@ export default function Accounts() {
                   </div>
                 </div>
 
-                {/* Actions Toolbar */}
+                {/* Actions Toolbar: Primary + Adjust + 3-Dot Overflow Menu */}
                 <div className="account-item-actions">
                   <button
                     type="button"
@@ -304,22 +314,75 @@ export default function Accounts() {
                     <Plus size={15} />
                     <span className="action-btn-label">{t('accounts.addMoney')}</span>
                   </button>
-                  <button className="btn btn-sm btn-ghost account-action-btn" onClick={() => openAdjust(acc)} title={t('accounts.adjustBalance')}>
+
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-ghost account-action-btn"
+                    onClick={() => openAdjust(acc)}
+                    title={t('accounts.adjustBalance')}
+                  >
                     <SlidersHorizontal size={15} />
                     <span className="action-btn-label">{t('accounts.adjustBalance')}</span>
                   </button>
-                  <button className="btn btn-sm btn-ghost account-action-btn" onClick={() => openHistory(acc.id)} title={t('accounts.adjustmentHistory')}>
-                    <History size={15} />
-                    <span className="action-btn-label">{t('accounts.adjustmentHistory')}</span>
-                  </button>
-                  <button className="btn btn-sm btn-ghost account-action-btn" onClick={() => openEdit(acc)} title={t('common.edit')}>
-                    <Edit2 size={15} />
-                    <span className="action-btn-label">{t('common.edit')}</span>
-                  </button>
-                  <button className="btn btn-sm btn-ghost account-action-btn delete" onClick={() => setDeleteConfirm(acc.id)} title={t('common.delete')}>
-                    <Trash2 size={15} />
-                    <span className="action-btn-label">{t('common.delete')}</span>
-                  </button>
+
+                  {/* 3-Dot Overflow Menu */}
+                  <div className="account-more-wrap">
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-ghost account-action-btn"
+                      onClick={() => setOpenMenuAccountId(openMenuAccountId === acc.id ? null : acc.id)}
+                      title={lang === 'bn' ? 'আরও অপশন' : 'More options'}
+                      aria-label="More options"
+                      style={{ padding: '6px 8px' }}
+                    >
+                      <MoreVertical size={16} />
+                    </button>
+
+                    {openMenuAccountId === acc.id && (
+                      <>
+                        <div
+                          style={{ position: 'fixed', inset: 0, zIndex: 45 }}
+                          onClick={() => setOpenMenuAccountId(null)}
+                        />
+                        <div className="account-more-dropdown">
+                          <button
+                            type="button"
+                            className="account-more-item"
+                            onClick={() => {
+                              setOpenMenuAccountId(null);
+                              openHistory(acc.id);
+                            }}
+                          >
+                            <History size={14} />
+                            <span>{t('accounts.adjustmentHistory')}</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="account-more-item"
+                            onClick={() => {
+                              setOpenMenuAccountId(null);
+                              openEdit(acc);
+                            }}
+                          >
+                            <Edit2 size={14} />
+                            <span>{t('common.edit')}</span>
+                          </button>
+                          <div style={{ height: 1, background: 'var(--card-inner-border, rgba(17, 20, 17, 0.08))', margin: '2px 0' }} />
+                          <button
+                            type="button"
+                            className="account-more-item danger"
+                            onClick={() => {
+                              setOpenMenuAccountId(null);
+                              setDeleteConfirm(acc.id);
+                            }}
+                          >
+                            <Trash2 size={14} />
+                            <span>{t('common.delete')}</span>
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -581,6 +644,28 @@ export default function Accounts() {
             value={adjustBalance}
             onChange={(e) => setAdjustBalance(e.target.value)}
           />
+          <div className="quick-increment-chips">
+            {[500, 1000, 5000].map((amt) => (
+              <button
+                key={`add-${amt}`}
+                type="button"
+                className="quick-increment-chip"
+                onClick={() => setAdjustBalance(String(Math.max(0, (Number(adjustBalance) || 0) + amt)))}
+              >
+                +৳{amt.toLocaleString('en-US')}
+              </button>
+            ))}
+            {[500, 1000].map((amt) => (
+              <button
+                key={`sub-${amt}`}
+                type="button"
+                className="quick-increment-chip"
+                onClick={() => setAdjustBalance(String(Math.max(0, (Number(adjustBalance) || 0) - amt)))}
+              >
+                -৳{amt.toLocaleString('en-US')}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="form-group">
           <label className="form-label">{t('accounts.reason')}</label>

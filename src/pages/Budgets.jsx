@@ -30,7 +30,7 @@ export default function Budgets() {
     return spending;
   }, [transactions, currentYear, currentMonth]);
 
-  const totalBudget = budgets.reduce((sum, b) => sum + b.limit, 0);
+  const totalBudget = budgets.reduce((sum, b) => sum + (Number(b.limit ?? b.amount) || 0), 0);
   const totalSpent = budgets.reduce((sum, b) => sum + (categorySpending[b.categoryId] || 0), 0);
   const overallUtilization = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
 
@@ -70,7 +70,7 @@ export default function Budgets() {
   const openEdit = (budget) => {
     setEditingBudget(budget);
     setFormCategoryId(budget.categoryId);
-    setFormLimit(String(budget.limit));
+    setFormLimit(String(budget.limit ?? budget.amount ?? ''));
     setShowAddModal(true);
   };
 
@@ -79,9 +79,9 @@ export default function Budgets() {
     if (!formCategoryId || !limit) return;
 
     if (editingBudget) {
-      updateBudget(editingBudget.id, { categoryId: formCategoryId, limit });
+      updateBudget(editingBudget.id, { categoryId: formCategoryId, limit, amount: limit });
     } else {
-      addBudget({ categoryId: formCategoryId, limit });
+      addBudget({ categoryId: formCategoryId, limit, amount: limit });
     }
     setShowAddModal(false);
     resetForm();
@@ -93,6 +93,7 @@ export default function Budgets() {
   };
 
   const getStatus = (spent, limit) => {
+    if (!limit || limit <= 0) return spent > 0 ? 'over-budget' : 'on-track';
     const pct = (spent / limit) * 100;
     if (pct >= 100) return 'over-budget';
     if (pct >= 80) return 'near-limit';
@@ -168,49 +169,73 @@ export default function Budgets() {
         </div>
       )}
 
-      {/* Budget List */}
+      {/* Budget List (Responsive Multi-Column Card Grid) */}
       {budgets.length > 0 ? (
-        <div className="stagger-children" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+        <div className="budget-cards-grid" data-tour="budgets-grid">
           {budgets.map((budget) => {
+            const limit = Number(budget.limit ?? budget.amount) || 0;
             const spent = categorySpending[budget.categoryId] || 0;
-            const remaining = budget.limit - spent;
-            const pct = (spent / budget.limit) * 100;
-            const status = getStatus(spent, budget.limit);
+            const remaining = limit - spent;
+            const pct = limit > 0 ? Math.round((spent / limit) * 100) : 0;
+            const status = getStatus(spent, limit);
             const cat = getCategoryInfo(budget.categoryId);
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            const daysLeft = Math.max(1, daysInMonth - now.getDate());
+            const dailyRemaining = remaining > 0 ? Math.round(remaining / daysLeft) : 0;
 
             return (
-              <div key={budget.id} className="budget-item">
-                <div className="budget-item-header">
-                  <div className="budget-category">
-                    <div className="budget-category-dot" style={{ background: cat?.color || 'var(--color-text-tertiary)' }} />
-                    <span className="budget-category-name">{getCategoryLabel(budget.categoryId)}</span>
+              <div key={budget.id} className="budget-card-modern animate-fade-in-up">
+                {/* Header: Category + Status Badge + Actions */}
+                <div className="budget-card-top">
+                  <div className="budget-card-cat">
+                    <div className="budget-cat-pill" style={{ background: cat?.color || 'var(--color-text-tertiary)' }} />
+                    <span className="budget-card-cat-name">{getCategoryLabel(budget.categoryId)}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <span className="badge" style={{
                       background: `${getStatusColor(status)}15`,
                       color: getStatusColor(status),
-                      fontSize: 11,
+                      fontSize: 10.5,
+                      fontWeight: 700,
+                      padding: '2px 7px',
                     }}>
                       {getStatusIcon(status)}
-                      {getStatusLabel(status)}
+                      <span>{getStatusLabel(status)}</span>
                     </span>
-                  </div>
-                  <div style={{ display: 'flex', gap: 'var(--space-1)' }}>
-                    <button className="btn btn-icon btn-ghost btn-sm" onClick={() => openEdit(budget)}>
-                      <Edit2 size={14} />
+                    <button className="btn btn-icon btn-ghost btn-sm" onClick={() => openEdit(budget)} title={t('common.edit')}>
+                      <Edit2 size={13} />
                     </button>
-                    <button className="btn btn-icon btn-ghost btn-sm" onClick={() => setDeleteConfirm(budget.id)} style={{ color: 'var(--color-expense)' }}>
-                      <Trash2 size={14} />
+                    <button className="btn btn-icon btn-ghost btn-sm" onClick={() => setDeleteConfirm(budget.id)} style={{ color: 'var(--color-expense)' }} title={t('common.delete')}>
+                      <Trash2 size={13} />
                     </button>
                   </div>
                 </div>
-                <div className="progress-bar">
-                  <div className={`progress-bar-fill ${status}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+
+                {/* Spent Figure & Utilization */}
+                <div>
+                  <div className="budget-card-stats">
+                    <span className="budget-card-spent">{formatCurrency(spent)}</span>
+                    <span className="budget-card-limit">/ {formatCurrency(limit)} ({pct}%)</span>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="progress-bar" style={{ height: 8, marginTop: 8 }}>
+                    <div
+                      className={`progress-bar-fill ${status}`}
+                      style={{ width: `${Math.min(pct, 100)}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="budget-amounts" style={{ marginTop: 'var(--space-2)' }}>
-                  <span className="budget-spent">{formatCurrency(spent)}</span>
-                  <span>{t('budgets.ofBudget')}</span>
-                  <span>{formatCurrency(budget.limit)}</span>
-                  <span style={{ marginLeft: 'auto', color: remaining >= 0 ? 'var(--color-income)' : 'var(--color-expense)', fontWeight: 'var(--weight-medium)' }}>
-                    {remaining >= 0 ? t('budgets.remaining') : t('budgets.overBudget')}: {formatCurrency(Math.abs(remaining))}
+
+                {/* Footer: Remaining Amount & Daily Pace */}
+                <div className="budget-card-pace">
+                  <span style={{ color: remaining >= 0 ? 'var(--color-text-secondary)' : 'var(--color-expense)', fontWeight: 600 }}>
+                    {remaining >= 0 ? `${t('budgets.remaining')}: ${formatCurrency(remaining)}` : `${t('budgets.overBudget')}: ${formatCurrency(Math.abs(remaining))}`}
+                  </span>
+                  <span style={{ color: 'var(--color-text-tertiary)' }}>
+                    {remaining > 0
+                      ? (lang === 'bn' ? `দৈনিক ৳${dailyRemaining.toLocaleString('bn-BD')} (${daysLeft} দিন)` : `৳${dailyRemaining.toLocaleString('en-US')}/day (${daysLeft}d left)`)
+                      : (lang === 'bn' ? 'বাজেট সমাপ্ত' : 'Depleted')}
                   </span>
                 </div>
               </div>

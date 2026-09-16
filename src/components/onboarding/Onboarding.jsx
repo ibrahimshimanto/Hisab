@@ -645,9 +645,16 @@ export default function Onboarding({ onComplete }) {
                   </div>
 
                   <div>
-                    <label className="form-label" style={{ fontSize: '11px', marginBottom: 4 }}>
-                      {lang === 'bn' ? 'বর্তমান ব্যালেন্স (৳):' : 'Initial Balance (৳):'}
-                    </label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <label className="form-label" style={{ fontSize: '11px', margin: 0 }}>
+                        {lang === 'bn' ? 'বর্তমান ব্যালেন্স (৳):' : 'Initial Balance (৳):'}
+                      </label>
+                      {accBalance && (
+                        <span style={{ fontSize: '11px', fontWeight: 'var(--weight-bold)', color: 'var(--color-primary-dark)' }}>
+                          {formatCurrency(Number(accBalance) || 0)}
+                        </span>
+                      )}
+                    </div>
                     <input
                       className="form-input"
                       type="number"
@@ -662,6 +669,18 @@ export default function Onboarding({ onComplete }) {
                       placeholder="0"
                       style={{ height: 38, fontSize: '13px' }}
                     />
+                    <div className="quick-increment-chips">
+                      {[5000, 10000, 25000, 50000].map((amt) => (
+                        <button
+                          key={amt}
+                          type="button"
+                          className="quick-increment-chip"
+                          onClick={() => setAccBalance(String((Number(accBalance) || 0) + amt))}
+                        >
+                          +৳{(amt / 1000).toFixed(0)}k
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 

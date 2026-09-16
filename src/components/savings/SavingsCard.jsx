@@ -27,23 +27,37 @@ export default function SavingsCard({ goal }) {
     return accounts.find((a) => a.id === goal.linkedAccountId);
   }, [accounts, goal.linkedAccountId]);
 
-  // Days calculation
+  // Days & Completion calculation
   const { daysRemaining, isMatured, timeLabel } = useMemo(() => {
-    if (!goal.targetDate) return { daysRemaining: 0, isMatured: false, timeLabel: '' };
-    const now = new Date();
-    const target = new Date(goal.targetDate);
-    const diffTime = target - now;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (goal.targetDate) {
+      const now = new Date();
+      const target = new Date(goal.targetDate);
+      const diffTime = target - now;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays <= 0) {
-      return { daysRemaining: 0, isMatured: true, timeLabel: t('savings.matured') };
+      if (diffDays <= 0) {
+        return { daysRemaining: 0, isMatured: true, timeLabel: t('savings.matured') };
+      }
+      return {
+        daysRemaining: diffDays,
+        isMatured: false,
+        timeLabel: `${diffDays} ${t('savings.daysLeft')}`,
+      };
     }
-    return {
-      daysRemaining: diffDays,
-      isMatured: false,
-      timeLabel: `${diffDays} ${t('savings.daysLeft')}`,
-    };
-  }, [goal.targetDate, t]);
+
+    // If no explicit target date, estimate from monthly pace if available
+    if (goal.monthlyContribution > 0 && goal.targetAmount > (goal.currentAmount || 0)) {
+      const remaining = goal.targetAmount - (goal.currentAmount || 0);
+      const months = Math.ceil(remaining / goal.monthlyContribution);
+      return {
+        daysRemaining: months * 30,
+        isMatured: false,
+        timeLabel: lang === 'bn' ? `আর ${months.toLocaleString('bn-BD')} মাস বাকি` : `${months} mo. remaining`,
+      };
+    }
+
+    return { daysRemaining: 0, isMatured: false, timeLabel: '' };
+  }, [goal.targetDate, goal.monthlyContribution, goal.targetAmount, goal.currentAmount, lang, t]);
 
   // Progress percentage
   const pct = useMemo(() => {

@@ -23,6 +23,7 @@ import {
   LogOut,
   Sliders,
   Camera,
+  AlertTriangle,
 } from 'lucide-react';
 import { useTranslation } from '../i18n/index.jsx';
 import useStore from '../store/useStore.js';
@@ -136,6 +137,23 @@ export default function Settings() {
     URL.revokeObjectURL(url);
   };
 
+  const handleManualSync = async () => {
+    if (isSyncing) return;
+    setIsSyncing(true);
+    setSyncSuccess(false);
+    try {
+      if (typeof syncToCloud === 'function') {
+        await syncToCloud();
+      }
+      setSyncSuccess(true);
+      setTimeout(() => setSyncSuccess(false), 2500);
+    } catch (err) {
+      console.error('Manual sync failed:', err);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const handleReset = () => {
     resetAll();
     setName('');
@@ -204,9 +222,32 @@ export default function Settings() {
                   </div>
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(6, 1fr)',
+                    gridTemplateColumns: avatar?.startsWith('data:') || avatar?.startsWith('http') ? 'repeat(7, 1fr)' : 'repeat(6, 1fr)',
                     gap: 6,
                   }}>
+                    {(avatar?.startsWith('data:') || avatar?.startsWith('http')) && (
+                      <button
+                        type="button"
+                        onClick={() => {}}
+                        style={{
+                          background: 'transparent',
+                          border: '2px solid #111411',
+                          outline: '2px solid #5ED21C',
+                          outlineOffset: '1.5px',
+                          borderRadius: 'var(--radius-md)',
+                          height: 36,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          overflow: 'hidden',
+                          padding: 0,
+                        }}
+                        title={lang === 'bn' ? 'ডিভাইসের ছবি (সক্রিয়)' : 'Custom Uploaded Photo (Active)'}
+                      >
+                        <img src={avatar} alt="Custom" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </button>
+                    )}
                     {AVATAR_OPTIONS.map((opt) => {
                       const isSelected = avatar === opt.id;
                       return (
@@ -252,7 +293,9 @@ export default function Settings() {
                 <div className="form-group" style={{ margin: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                     <label className="form-label" style={{ margin: 0 }}>{t('settings.monthlySalary')}</label>
-                    <span style={{ fontSize: '10px', color: 'var(--color-text-tertiary)' }}>BDT (৳)</span>
+                    <span style={{ fontSize: '11px', fontWeight: 'var(--weight-bold)', color: 'var(--color-primary-dark)' }}>
+                      {salary ? formatCurrency(Number(salary) || 0) : 'BDT (৳)'}
+                    </span>
                   </div>
                   <input
                     className="form-input"
@@ -261,6 +304,18 @@ export default function Settings() {
                     onChange={(e) => setSalary(e.target.value)}
                     placeholder={t('settings.salaryPlaceholder')}
                   />
+                  <div className="quick-increment-chips">
+                    {[10000, 25000, 50000].map((amt) => (
+                      <button
+                        key={amt}
+                        type="button"
+                        className="quick-increment-chip"
+                        onClick={() => setSalary(String((Number(salary) || 0) + amt))}
+                      >
+                        +৳{(amt / 1000).toFixed(0)}k
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -603,7 +658,7 @@ export default function Settings() {
                 </div>
 
                 {/* Export Data */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--space-3) 0', borderBottom: '1px solid var(--color-border-light)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--space-3) 0' }}>
                   <div>
                     <p style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--weight-medium)', margin: 0 }}>{t('settings.exportData')}</p>
                     <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)', margin: '2px 0 0' }}>{t('settings.exportDataDesc')}</p>
@@ -611,18 +666,6 @@ export default function Settings() {
                   <button type="button" className="btn btn-secondary btn-sm" onClick={handleExport} style={{ gap: 6 }}>
                     <Download size={14} />
                     <span>{t('transactions.exportCSV')}</span>
-                  </button>
-                </div>
-
-                {/* Reset Data */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--space-3) 0' }}>
-                  <div>
-                    <p style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--weight-medium)', color: 'var(--color-expense)', margin: 0 }}>{t('settings.resetData')}</p>
-                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)', margin: '2px 0 0' }}>{t('settings.resetDataDesc')}</p>
-                  </div>
-                  <button type="button" className="btn btn-danger btn-sm" onClick={() => setShowResetConfirm(true)} style={{ gap: 6 }}>
-                    <Trash2 size={14} />
-                    <span>{t('settings.reset')}</span>
                   </button>
                 </div>
               </div>
@@ -647,6 +690,38 @@ export default function Settings() {
               </span>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* ========================================================
+          ISOLATED DANGER ZONE CARD (System Data Reset Safety)
+          ======================================================== */}
+      <div className="card danger-zone-card animate-fade-in" style={{ marginTop: 'var(--space-6)' }}>
+        <div className="danger-zone-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div className="danger-zone-icon-box">
+              <AlertTriangle size={20} />
+            </div>
+            <div>
+              <h3 className="danger-zone-title" style={{ color: 'var(--color-expense)' }}>
+                {lang === 'bn' ? 'সতর্কতা অঞ্চল (ডেঞ্জার জোন)' : 'Danger Zone • System Data Reset'}
+              </h3>
+              <p className="card-subtitle" style={{ margin: '2px 0 0' }}>
+                {lang === 'bn'
+                  ? 'সমস্ত হিসাব, লেনদেন, ব্যাংক অ্যাকাউন্ট ও বাজেট স্থায়ীভাবে মুছে ফেলুন'
+                  : 'Permanently erase all local & cloud transactions, accounts, and financial schemes'}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn btn-danger btn-sm"
+            onClick={() => setShowResetConfirm(true)}
+            style={{ gap: 6, whiteSpace: 'nowrap' }}
+          >
+            <Trash2 size={14} />
+            <span>{t('settings.resetData')}</span>
+          </button>
         </div>
       </div>
 
