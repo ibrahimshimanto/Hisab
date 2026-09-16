@@ -41,6 +41,32 @@
   box-shadow: none;
 }
 
+/* ---- Cards Inside Cards (Child Cards) ---- */
+/* Top-level parent cards have no stroke, but inner cards have a subtle stroke for clear visual differentiation */
+.card .card,
+.card .inner-card,
+.card [class*="-item-card"],
+.card [class*="-preview-item"],
+.card [class*="-bill-card"],
+.modal [class*="-card"],
+.modal [class*="-box"],
+.hero-card .hero-action-card,
+.hero-card .hero-health-mobile-bar {
+  border: 1px solid var(--card-inner-border, rgba(17, 20, 17, 0.09)) !important;
+}
+
+[data-theme="dark"] .card .card,
+[data-theme="dark"] .card .inner-card,
+[data-theme="dark"] .card [class*="-item-card"],
+[data-theme="dark"] .card [class*="-preview-item"],
+[data-theme="dark"] .card [class*="-bill-card"],
+[data-theme="dark"] .modal [class*="-card"],
+[data-theme="dark"] .modal [class*="-box"],
+[data-theme="dark"] .hero-card .hero-action-card,
+[data-theme="dark"] .hero-card .hero-health-mobile-bar {
+  border: 1px solid var(--card-inner-border, rgba(255, 255, 255, 0.12)) !important;
+}
+
 .card-header {
   display: flex;
   align-items: center;
@@ -549,6 +575,11 @@
   color: #5ED21C;
 }
 
+/* Mobile Financial Health & Safety Runway Bar (Hidden by default, shown on mobile) */
+.hero-health-mobile-bar {
+  display: none;
+}
+
 /* ============================================
    HERO QUICK ACTION CARDS (4 Floating Capsules)
    ============================================ */
@@ -567,7 +598,7 @@
   padding: 13px 16px;
   background: #FFFFFF;
   border-radius: 18px;
-  border: none;
+  border: 1px solid var(--card-inner-border, rgba(17, 20, 17, 0.08));
   box-shadow: none;
   cursor: pointer;
   user-select: none;
@@ -773,7 +804,7 @@
 
 [data-theme="dark"] .hero-action-card {
   background: rgba(255, 255, 255, 0.07);
-  border: none;
+  border: 1px solid var(--card-inner-border, rgba(255, 255, 255, 0.12));
   box-shadow: none;
   backdrop-filter: blur(12px);
 }
@@ -2277,7 +2308,7 @@ body.modal-open .floating-capsule-nav {
     font-size: 11px !important;
     font-weight: 700 !important;
     gap: 6px !important;
-    border: none !important;
+    border: 1px solid var(--card-inner-border, rgba(17, 20, 17, 0.08)) !important;
     box-shadow: none !important;
     border-radius: var(--radius-full) !important;
   }
@@ -2287,12 +2318,109 @@ body.modal-open .floating-capsule-nav {
     display: none !important;
   }
 
+  /* Mobile Financial Health & Runway Strip */
+  .hero-health-mobile-bar {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+    background: #FFFFFF !important;
+    border: 1px solid var(--card-inner-border, rgba(17, 20, 17, 0.08)) !important;
+    border-radius: 14px !important;
+    padding: 8px 12px !important;
+    margin-top: 10px !important;
+    margin-bottom: 2px !important;
+    cursor: pointer !important;
+    user-select: none !important;
+    transition: transform 0.15s ease !important;
+  }
+
+  [data-theme="dark"] .hero-health-mobile-bar {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: var(--card-inner-border, rgba(255, 255, 255, 0.12)) !important;
+  }
+
+  .hero-health-mobile-bar:active {
+    transform: scale(0.98) !important;
+  }
+
+  .hero-health-mobile-left {
+    display: flex !important;
+    align-items: center !important;
+    gap: 9px !important;
+    min-width: 0 !important;
+  }
+
+  .hero-health-score-badge-mini {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    background: #111411 !important;
+    color: #FFFFFF !important;
+    padding: 2px 7px !important;
+    border-radius: var(--radius-full) !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    flex-shrink: 0 !important;
+  }
+
+  .hero-health-score-dot {
+    width: 6px !important;
+    height: 6px !important;
+    border-radius: 50% !important;
+    flex-shrink: 0 !important;
+  }
+
+  .hero-health-score-num {
+    font-size: 11.5px !important;
+    font-weight: 800 !important;
+    color: #FFFFFF !important;
+  }
+
+  .hero-health-score-max {
+    font-size: 9px !important;
+    opacity: 0.65 !important;
+  }
+
+  .hero-health-mobile-info {
+    display: flex !important;
+    flex-direction: column !important;
+    min-width: 0 !important;
+  }
+
+  .hero-health-mobile-title {
+    font-size: 11.5px !important;
+    font-weight: 700 !important;
+    color: var(--color-text-primary) !important;
+    line-height: 1.2 !important;
+  }
+
+  .hero-health-mobile-sub {
+    font-size: 10px !important;
+    color: var(--color-text-tertiary) !important;
+    font-weight: 500 !important;
+  }
+
+  .hero-health-mobile-right {
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    color: #15803D !important;
+    flex-shrink: 0 !important;
+  }
+
+  [data-theme="dark"] .hero-health-mobile-right {
+    color: #5ED21C !important;
+  }
+
   /* 2x2 Action Cards matching Image 1 */
   .hero-actions-grid {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
     gap: 10px !important;
-    margin-top: 14px !important;
+    margin-top: 12px !important;
   }
 
   .hero-action-card {
@@ -2305,7 +2433,7 @@ body.modal-open .floating-capsule-nav {
     gap: 12px !important;
     border-radius: 16px !important;
     min-height: 56px !important;
-    border: none !important;
+    border: 1px solid var(--card-inner-border, rgba(17, 20, 17, 0.08)) !important;
     box-shadow: none !important;
     background: #FFFFFF !important;
   }
@@ -2463,7 +2591,7 @@ body.modal-open .floating-capsule-nav {
     flex-direction: row !important;
     text-align: left !important;
     align-items: center !important;
-    border: none !important;
+    border: 1px solid var(--card-inner-border, rgba(17, 20, 17, 0.08)) !important;
     box-shadow: none !important;
   }
 

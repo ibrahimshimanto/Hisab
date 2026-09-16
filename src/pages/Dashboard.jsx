@@ -567,6 +567,39 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Mobile Financial Health & Liquid Runway Bar */}
+        <div
+          className="hero-health-mobile-bar"
+          onClick={() => setShowAiModal(true)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setShowAiModal(true); }}
+          title={lang === 'bn' ? 'পূর্ণ এআই আর্থিক স্বাস্থ্য রিপোর্ট দেখুন' : 'View Full AI Financial Health Report'}
+        >
+          <div className="hero-health-mobile-left">
+            <div className="hero-health-score-badge-mini">
+              <span
+                className="hero-health-score-dot"
+                style={{ backgroundColor: aiAnalysis.scoreColor || '#22C55E' }}
+              />
+              <span className="hero-health-score-num">{aiAnalysis.score}</span>
+              <span className="hero-health-score-max">/100</span>
+            </div>
+            <div className="hero-health-mobile-info">
+              <span className="hero-health-mobile-title">
+                {lang === 'bn' ? 'আর্থিক স্বাস্থ্য' : 'Health Score'}
+              </span>
+              <span className="hero-health-mobile-sub">
+                {aiAnalysis.runwayMonths} {lang === 'bn' ? 'মাস তরল রানওয়ে' : 'Mo. Liquid Runway'}
+              </span>
+            </div>
+          </div>
+          <div className="hero-health-mobile-right">
+            <span className="hero-health-status-text-mobile">{aiAnalysis.scoreLabel}</span>
+            <ChevronRight size={14} className="hero-health-chevron" />
+          </div>
+        </div>
+
         {/* 4 Tactile Floating Quick Action Cards */}
         <div className="hero-actions-grid">
           <button
