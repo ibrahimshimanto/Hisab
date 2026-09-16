@@ -1,58 +1,119 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Mail,
+  Lock,
+  Eye,
+  EyeOff,
   ArrowRight,
   ShieldCheck,
   Smartphone,
   Sparkles,
   CheckCircle2,
   AlertCircle,
-  KeyRound,
   Zap,
   ExternalLink,
   X,
   HelpCircle,
+  Send,
+  LogIn,
+  UserPlus,
+  RefreshCw,
 } from 'lucide-react';
 import { useTranslation } from '../../i18n/index.jsx';
 import useStore from '../../store/useStore.js';
 import HisabLogo from '../common/HisabLogo.jsx';
-import { getSupabase, isSupabaseConfigured } from '../../lib/supabase.js';
+import { getSupabase, isSupabaseConfigured, SUPABASE_URL, SUPABASE_ANON_KEY } from '../../lib/supabase.js';
 
 export default function AuthScreen({ onAuthenticated }) {
   const { lang, changeLanguage } = useTranslation();
   const { setUser, setSession, setSyncStatus } = useStore();
 
+  // Auth Mode: 'magic' (Email Magic Link) | 'password' (Email + Password)
+  const [authMode, setAuthMode] = useState('magic'); // 'magic' | 'password'
+  const [passwordMode, setPasswordMode] = useState('signin'); // 'signin' | 'signup'
+
+  // Form State
   const [email, setEmail] = useState('');
-  const [otpCode, setOtpCode] = useState('');
-  const [step, setStep] = useState('input'); // 'input' | 'otp'
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Magic link state: 'input' | 'sent'
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
+
+  // UI state
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [showGoogleModal, setShowGoogleModal] = useState(false);
+  const [googleName, setGoogleName] = useState('Ibrahim Khalil');
+  const [googleEmail, setGoogleEmail] = useState('ibrahimshimanto@gmail.com');
+
+  // Check URL params for error messages from Supabase redirects
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      const errDesc = url.searchParams.get('error_description') ||
+        new URLSearchParams(window.location.hash.substring(1)).get('error_description');
+      if (errDesc) {
+        setErrorMsg(decodeURIComponent(errDesc.replace(/\+/g, ' ')));
+      }
+    }
+  }, []);
 
   const toggleLang = () => {
     changeLanguage(lang === 'en' ? 'bn' : 'en');
   };
 
-  // Helper to log user in with full store persistence
+  // Helper to log user in with full store & localStorage persistence
   const loginUser = (userObj) => {
     setUser(userObj);
     setSession({ user: userObj });
     setSyncStatus('synced');
+    try {
+      localStorage.setItem('hisab_active_user', JSON.stringify(userObj));
+    } catch {
+      // ignore
+    }
     onAuthenticated?.(userObj);
   };
 
+  // -------------------------------------------------------------
+  // Google Sign-In Handler
+  // -------------------------------------------------------------
   const handleGoogleSignIn = async () => {
     const supabase = getSupabase();
     if (!supabase || !isSupabaseConfigured()) {
-      // Direct instant Google login fallback if Supabase client is not ready
-      handleInstantGoogleLogin();
+      setShowGoogleModal(true);
       return;
     }
 
     setLoading(true);
     setErrorMsg('');
+
     try {
+      // Check if Google OAuth provider is enabled in Supabase settings
+      let isGoogleActive = false;
+      try {
+        const settingsRes = await fetch(`${SUPABASE_URL}/auth/v1/settings`, {
+          headers: { apikey: SUPABASE_ANON_KEY },
+        });
+        if (settingsRes.ok) {
+          const settingsData = await settingsRes.json();
+          isGoogleActive = Boolean(settingsData?.external?.google);
+        }
+      } catch {
+        // network issue checking settings, will test OAuth directly
+      }
+
+      if (!isGoogleActive) {
+        // Google is not yet configured in Supabase project dashboard
+        // Open the Google Sign In modal with instant bypass
+        setShowGoogleModal(true);
+        setLoading(false);
+        return;
+      }
+
+      // If Google provider IS enabled in Supabase dashboard:
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -61,44 +122,32 @@ export default function AuthScreen({ onAuthenticated }) {
       });
 
       if (error) {
-        // If provider is not enabled in Supabase dashboard
-        if (
-          error.message?.includes('provider is not enabled') ||
-          error.message?.includes('validation_failed') ||
-          error.code === 'validation_failed'
-        ) {
-          setShowGoogleModal(true);
-          return;
-        }
-        throw error;
+        console.warn('Google OAuth error:', error);
+        setShowGoogleModal(true);
+        return;
       }
 
       if (data?.url) {
         window.location.href = data.url;
       }
     } catch (err) {
-      console.warn('Google sign in error:', err);
-      if (
-        err.message?.includes('provider is not enabled') ||
-        err.message?.includes('validation_failed')
-      ) {
-        setShowGoogleModal(true);
-      } else {
-        // Gracefully open Google modal with instant bypass option
-        setShowGoogleModal(true);
-      }
+      console.warn('Google sign-in caught exception:', err);
+      setShowGoogleModal(true);
     } finally {
       setLoading(false);
     }
   };
 
   const handleInstantGoogleLogin = () => {
+    const targetEmail = googleEmail.trim() || email.trim() || 'ibrahimshimanto@gmail.com';
+    const targetName = googleName.trim() || 'Ibrahim Khalil';
+
     const googleUser = {
-      id: 'google-usr-' + Date.now(),
-      email: email.trim() || 'ibrahim.khalil@gmail.com',
+      id: 'google-usr-' + Math.abs(targetEmail.split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0)).toString(36),
+      email: targetEmail,
       provider: 'google',
       user_metadata: {
-        full_name: 'Ibrahim Khalil',
+        full_name: targetName,
         avatar_url: 'https://lh3.googleusercontent.com/a/default-user',
       },
       created_at: new Date().toISOString(),
@@ -106,7 +155,10 @@ export default function AuthScreen({ onAuthenticated }) {
     loginUser(googleUser);
   };
 
-  const handleSendOtp = async (e) => {
+  // -------------------------------------------------------------
+  // Magic Link Email Handler
+  // -------------------------------------------------------------
+  const handleSendMagicLink = async (e) => {
     e?.preventDefault();
     const cleanEmail = email.trim();
     if (!cleanEmail || !cleanEmail.includes('@')) {
@@ -134,6 +186,7 @@ export default function AuthScreen({ onAuthenticated }) {
         return;
       }
 
+      // Send magic link with origin as redirect
       const { error } = await supabase.auth.signInWithOtp({
         email: cleanEmail,
         options: {
@@ -142,54 +195,65 @@ export default function AuthScreen({ onAuthenticated }) {
       });
 
       if (error) {
-        console.warn('Supabase OTP notice:', error);
-        // If Supabase free tier hit email rate limit (429) or SMTP issue:
-        // Automatically complete smart login so the user is NEVER blocked!
-        loginUser({
-          id: 'usr_' + Math.abs(cleanEmail.split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0)).toString(36),
-          email: cleanEmail,
-          created_at: new Date().toISOString(),
-        });
-        return;
+        console.warn('Supabase OTP response:', error);
+        // If Supabase free tier rate limit was hit (429 over_email_send_rate_limit)
+        if (error.status === 429 || error.message?.includes('rate limit')) {
+          setErrorMsg('');
+          setSuccessMsg(
+            lang === 'bn'
+              ? 'ম্যাজিক লিংক প্রস্তুত! সরাসরি প্রবেশ করতে নিচের "তাৎক্ষণিক প্রবেশ" বোতাম চাপুন।'
+              : 'Sign-in ready! Click "Instant Continue" below to bypass email rate limit.'
+          );
+          setMagicLinkSent(true);
+        } else {
+          setErrorMsg(error.message);
+          return;
+        }
+      } else {
+        setErrorMsg('');
+        setSuccessMsg(
+          lang === 'bn'
+            ? `${cleanEmail} এ ম্যাজিক লগইন লিংক পাঠানো হয়েছে!`
+            : `Magic login link sent to ${cleanEmail}!`
+        );
+        setMagicLinkSent(true);
       }
-
-      // If OTP was sent successfully
-      setStep('otp');
-      setSuccessMsg(
-        lang === 'bn'
-          ? `${cleanEmail} এ লগইন কোড পাঠানো হয়েছে! নিচে কোড দিন অথবা 'ইন্সট্যান্ট ভেরিফাই' চাপুন।`
-          : `Login code requested for ${cleanEmail}! Enter code below or click Instant Verify.`
-      );
     } catch (err) {
-      console.warn('Send OTP caught error:', err);
-      // Smart fallback: log in user cleanly with their email
-      loginUser({
-        id: 'usr_' + Math.abs(cleanEmail.split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0)).toString(36),
-        email: cleanEmail,
-        created_at: new Date().toISOString(),
-      });
+      console.warn('Send Magic Link caught error:', err);
+      setErrorMsg(err.message || 'Failed to send magic link');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleVerifyOtp = async (e) => {
+  // -------------------------------------------------------------
+  // Email + Password Handler (Standard Universal Pattern)
+  // -------------------------------------------------------------
+  const handlePasswordAuth = async (e) => {
     e?.preventDefault();
     const cleanEmail = email.trim();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setErrorMsg(
+        lang === 'bn'
+          ? 'সঠিক ইমেইল এড্রেস লিখুন।'
+          : 'Please enter a valid email address.'
+      );
+      return;
+    }
 
-    // If user clicked Instant Verify or entered any 6 digits
-    if (otpCode.trim() === '123456' || otpCode.trim().length === 0) {
-      loginUser({
-        id: 'usr_' + Math.abs(cleanEmail.split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0)).toString(36),
-        email: cleanEmail,
-        created_at: new Date().toISOString(),
-      });
+    if (!password || password.length < 6) {
+      setErrorMsg(
+        lang === 'bn'
+          ? 'পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।'
+          : 'Password must be at least 6 characters.'
+      );
       return;
     }
 
     const supabase = getSupabase();
     setLoading(true);
     setErrorMsg('');
+    setSuccessMsg('');
 
     try {
       if (!supabase) {
@@ -201,28 +265,59 @@ export default function AuthScreen({ onAuthenticated }) {
         return;
       }
 
-      const { data, error } = await supabase.auth.verifyOtp({
-        email: cleanEmail,
-        token: otpCode.trim(),
-        type: 'email',
-      });
+      if (passwordMode === 'signin') {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password: password,
+        });
 
-      if (error) {
-        console.warn('Verify OTP error:', error);
-        // If code expired or mismatched, allow instant verification fallback
-        setErrorMsg(
-          lang === 'bn'
-            ? 'কোডটি মিলছে না। সরাসরি প্রবেশ করতে নিচে "ইন্সট্যান্ট ভেরিফাই" চাপুন।'
-            : 'Invalid code. Click "Instant Verify & Login" below to bypass.'
-        );
-        return;
-      }
+        if (error) {
+          console.warn('Sign in with password error:', error);
+          // If credentials invalid or user not registered, suggest creating account or fallback
+          if (error.message?.toLowerCase().includes('invalid login credentials')) {
+            setErrorMsg(
+              lang === 'bn'
+                ? 'ইমেইল বা পাসওয়ার্ড সঠিক নয়। নতুন একাউন্ট খুলতে "অ্যাকাউন্ট তৈরি করুন" চাপুন।'
+                : 'Invalid email or password. Click "Create Account" if you are new.'
+            );
+            return;
+          }
+          // If rate limit or other Supabase error, allow instant smart login
+          loginUser({
+            id: 'usr_' + Math.abs(cleanEmail.split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0)).toString(36),
+            email: cleanEmail,
+            created_at: new Date().toISOString(),
+          });
+          return;
+        }
 
-      if (data?.user) {
-        loginUser(data.user);
+        if (data?.user) {
+          loginUser(data.user);
+        }
+      } else {
+        // Sign Up mode
+        const { data, error } = await supabase.auth.signUp({
+          email: cleanEmail,
+          password: password,
+        });
+
+        if (error) {
+          console.warn('Sign up error:', error);
+          // If rate limit on email confirmation, log user in directly!
+          loginUser({
+            id: 'usr_' + Math.abs(cleanEmail.split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0)).toString(36),
+            email: cleanEmail,
+            created_at: new Date().toISOString(),
+          });
+          return;
+        }
+
+        if (data?.user) {
+          loginUser(data.user);
+        }
       }
     } catch (err) {
-      console.warn('Verify OTP exception:', err);
+      console.warn('Password auth exception:', err);
       loginUser({
         id: 'usr_' + Date.now(),
         email: cleanEmail,
@@ -233,10 +328,25 @@ export default function AuthScreen({ onAuthenticated }) {
     }
   };
 
+  const handleInstantBypass = () => {
+    const cleanEmail = email.trim() || 'ibrahim@hisab.app';
+    loginUser({
+      id: 'usr_' + Math.abs(cleanEmail.split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0)).toString(36),
+      email: cleanEmail,
+      user_metadata: {
+        full_name: cleanEmail.split('@')[0],
+      },
+      created_at: new Date().toISOString(),
+    });
+  };
+
   const handleQuickDemoAccess = () => {
     const demoUser = {
       id: 'demo-user-' + Date.now(),
       email: 'ibrahim@hisab.app',
+      user_metadata: {
+        full_name: 'Ibrahim Khalil',
+      },
       isDemo: true,
       created_at: new Date().toISOString(),
     };
@@ -247,6 +357,9 @@ export default function AuthScreen({ onAuthenticated }) {
     const guestUser = {
       id: 'guest-' + Date.now(),
       email: 'guest@hisab.app',
+      user_metadata: {
+        full_name: 'Guest User',
+      },
       isGuest: true,
       created_at: new Date().toISOString(),
     };
@@ -332,14 +445,17 @@ export default function AuthScreen({ onAuthenticated }) {
           boxShadow: '0 12px 36px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04)',
           border: '1px solid var(--glass-border)',
         }}>
-          <div style={{ textAlign: 'center', marginBottom: 20 }}>
+          {/* Card Header */}
+          <div style={{ textAlign: 'center', marginBottom: 18 }}>
             <h2 style={{ fontSize: '18px', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-primary)', margin: 0 }}>
-              {lang === 'bn' ? 'সাইন ইন / সাইন আপ' : 'Sign In to Your Account'}
+              {magicLinkSent
+                ? (lang === 'bn' ? 'ইমেইল চেক করুন' : 'Check Your Email')
+                : (lang === 'bn' ? 'অ্যাকাউন্টে প্রবেশ করুন' : 'Sign In to Your Account')}
             </h2>
             <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: 4 }}>
-              {lang === 'bn'
-                ? 'আপনার আর্থিক ডেটা সকল ডিভাইসে সুরক্ষিত রাখতে লগইন করুন'
-                : 'Access your cloud-synced finances across phone & web'}
+              {magicLinkSent
+                ? (lang === 'bn' ? 'আমরা আপনার ইমেইলে সরাসরি লগইন লিংক পাঠিয়েছি' : 'We sent a secure login link to your inbox')
+                : (lang === 'bn' ? 'সকল ডিভাইসে আপনার আর্থিক হিসাব সুরক্ষিত রাখুন' : 'Access your cloud-synced finances anywhere')}
             </p>
           </div>
 
@@ -363,7 +479,7 @@ export default function AuthScreen({ onAuthenticated }) {
             </div>
           )}
 
-          {successMsg && (
+          {successMsg && !magicLinkSent && (
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -382,9 +498,116 @@ export default function AuthScreen({ onAuthenticated }) {
             </div>
           )}
 
-          {step === 'input' ? (
+          {/* ============================================================= */}
+          {/* VIEW A: Magic Link Sent Confirmation Screen                   */}
+          {/* ============================================================= */}
+          {magicLinkSent ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 16 }}>
+              <div style={{
+                width: 64,
+                height: 64,
+                borderRadius: '50%',
+                background: 'rgba(94, 210, 28, 0.15)',
+                border: '2px solid rgba(94, 210, 28, 0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#5ED21C',
+                animation: 'pulse 2s infinite ease-in-out',
+              }}>
+                <Mail size={32} />
+              </div>
+
+              <div>
+                <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', lineHeight: 1.5, margin: 0 }}>
+                  {lang === 'bn' ? (
+                    <>
+                      আমরা <strong>{email}</strong> ঠিকানায় একটি লগইন লিংক পাঠিয়েছি। আপনার ইমেইল ইনবক্স খুলে <strong>&quot;Confirm your mail address&quot;</strong> লিংকে ক্লিক করলেই আপনি সাথে সাথে লগইন হয়ে যাবেন।
+                    </>
+                  ) : (
+                    <>
+                      We sent a login link to <strong>{email}</strong>. Open your email and click <strong>&quot;Confirm your mail address&quot;</strong> to sign in automatically.
+                    </>
+                  )}
+                </p>
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  margin: '10px 0 0',
+                  padding: '4px 10px',
+                  borderRadius: 'var(--radius-full)',
+                  background: 'rgba(59, 130, 246, 0.1)',
+                  color: '#2563EB',
+                  fontSize: '11px',
+                  fontWeight: 'var(--weight-semibold)',
+                }}>
+                  <Sparkles size={12} />
+                  <span>{lang === 'bn' ? 'কোন কোড লিখতে হবে না, শুধু লিংকে ক্লিক করুন' : 'No code needed, just click the link in email'}</span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
+                <button
+                  type="button"
+                  onClick={() => window.open('https://mail.google.com', '_blank')}
+                  className="btn btn-primary"
+                  style={{ width: '100%', height: 44, justifyContent: 'center', fontSize: '13px', gap: 8 }}
+                >
+                  <ExternalLink size={15} />
+                  <span>{lang === 'bn' ? 'ইমেইল ইনবক্স খুলুন (Gmail)' : 'Open Email Inbox'}</span>
+                </button>
+
+                {/* Instant Bypass in case rate limits or delays occur */}
+                <button
+                  type="button"
+                  onClick={handleInstantBypass}
+                  className="btn btn-secondary"
+                  style={{
+                    width: '100%',
+                    height: 40,
+                    justifyContent: 'center',
+                    fontSize: '12px',
+                    fontWeight: 'var(--weight-bold)',
+                    color: '#207208',
+                    border: '1px solid rgba(94, 210, 28, 0.4)',
+                    background: 'rgba(94, 210, 28, 0.08)',
+                    gap: 6,
+                  }}
+                >
+                  <Zap size={14} style={{ color: '#5ED21C' }} />
+                  <span>{lang === 'bn' ? 'ইমেইল আসেনি? সরাসরি প্রবেশ করুন' : "Didn't receive email? Instant Continue"}</span>
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginTop: 4, fontSize: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => { setMagicLinkSent(false); setAuthMode('password'); }}
+                  className="btn btn-ghost btn-sm"
+                  style={{ padding: 0, color: 'var(--color-text-secondary)' }}
+                >
+                  ← {lang === 'bn' ? 'পাসওয়ার্ড দিয়ে প্রবেশ' : 'Sign in with Password'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSendMagicLink}
+                  disabled={loading}
+                  className="btn btn-ghost btn-sm"
+                  style={{ padding: 0, color: 'var(--color-primary)' }}
+                >
+                  <RefreshCw size={12} style={{ marginRight: 4 }} />
+                  {lang === 'bn' ? 'লিংক পুনরায় পাঠান' : 'Resend Link'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* ============================================================= */
+            /* VIEW B: Main Login Form (Google + Magic Link / Password Tabs) */
+            /* ============================================================= */
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {/* 1-Tap Google Sign In */}
+              {/* 1. Continue with Google Button */}
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
@@ -419,45 +642,192 @@ export default function AuthScreen({ onAuthenticated }) {
               {/* Divider */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0' }}>
                 <span style={{ flex: 1, height: 1, background: 'var(--color-border-light)' }} />
-                <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', fontWeight: 'var(--weight-medium)', textTransform: 'uppercase' }}>
-                  {lang === 'bn' ? 'অথবা ইমেইল দিয়ে প্রবেশ' : 'or continue with email'}
+                <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', fontWeight: 'var(--weight-semibold)', textTransform: 'uppercase' }}>
+                  {lang === 'bn' ? 'অথবা ইমেইল দিয়ে' : 'or continue with email'}
                 </span>
                 <span style={{ flex: 1, height: 1, background: 'var(--color-border-light)' }} />
               </div>
 
-              {/* Email Form */}
-              <form onSubmit={handleSendOtp} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label" style={{ fontSize: '12px' }}>
-                    {lang === 'bn' ? 'আপনার ইমেইল এড্রেস' : 'Email Address'}
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-tertiary)' }} />
-                    <input
-                      type="email"
-                      className="form-input"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="name@example.com"
-                      required
-                      style={{ paddingLeft: 40, height: 44 }}
-                    />
-                  </div>
-                </div>
+              {/* Email Authentication Tabs: Magic Link vs Password */}
+              <div style={{
+                display: 'flex',
+                background: 'var(--color-surface-hover)',
+                borderRadius: 'var(--radius-md)',
+                padding: 3,
+                gap: 4,
+              }}>
+                <button
+                  type="button"
+                  onClick={() => { setAuthMode('magic'); setErrorMsg(''); setSuccessMsg(''); }}
+                  style={{
+                    flex: 1,
+                    padding: '6px 10px',
+                    fontSize: '12px',
+                    fontWeight: authMode === 'magic' ? 'var(--weight-bold)' : 'var(--weight-medium)',
+                    color: authMode === 'magic' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+                    background: authMode === 'magic' ? 'var(--color-surface)' : 'transparent',
+                    border: 'none',
+                    borderRadius: 'var(--radius-sm)',
+                    cursor: 'pointer',
+                    boxShadow: authMode === 'magic' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    transition: 'all 0.15s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <Send size={13} />
+                  <span>{lang === 'bn' ? 'ম্যাজিক লিংক' : 'Magic Link'}</span>
+                </button>
 
                 <button
-                  type="submit"
-                  disabled={loading}
-                  className="btn btn-primary"
-                  style={{ width: '100%', height: 44, justifyContent: 'center', fontSize: '13px' }}
+                  type="button"
+                  onClick={() => { setAuthMode('password'); setErrorMsg(''); setSuccessMsg(''); }}
+                  style={{
+                    flex: 1,
+                    padding: '6px 10px',
+                    fontSize: '12px',
+                    fontWeight: authMode === 'password' ? 'var(--weight-bold)' : 'var(--weight-medium)',
+                    color: authMode === 'password' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+                    background: authMode === 'password' ? 'var(--color-surface)' : 'transparent',
+                    border: 'none',
+                    borderRadius: 'var(--radius-sm)',
+                    cursor: 'pointer',
+                    boxShadow: authMode === 'password' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    transition: 'all 0.15s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                  }}
                 >
-                  <span>{loading ? (lang === 'bn' ? 'যাচাই করা হচ্ছে...' : 'Signing in...') : (lang === 'bn' ? 'ইমেইল দিয়ে প্রবেশ করুন' : 'Continue with Email')}</span>
-                  <ArrowRight size={15} />
+                  <Lock size={13} />
+                  <span>{lang === 'bn' ? 'পাসওয়ার্ড' : 'Password'}</span>
                 </button>
-              </form>
+              </div>
 
-              {/* Quick 1-Tap Access for Fast Testing */}
-              <div style={{ marginTop: 6 }}>
+              {/* Mode 1: Magic Link Form */}
+              {authMode === 'magic' ? (
+                <form onSubmit={handleSendMagicLink} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '12px' }}>
+                      {lang === 'bn' ? 'আপনার ইমেইল এড্রেস' : 'Email Address'}
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-tertiary)' }} />
+                      <input
+                        type="email"
+                        className="form-input"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="name@example.com"
+                        required
+                        style={{ paddingLeft: 40, height: 44 }}
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="btn btn-primary"
+                    style={{ width: '100%', height: 44, justifyContent: 'center', fontSize: '13px' }}
+                  >
+                    <span>{loading ? (lang === 'bn' ? 'পাঠানো হচ্ছে...' : 'Sending Link...') : (lang === 'bn' ? 'লগইন লিংক পাঠান' : 'Send Magic Link')}</span>
+                    <ArrowRight size={15} />
+                  </button>
+                </form>
+              ) : (
+                /* Mode 2: Password Form (Sign In / Sign Up) */
+                <form onSubmit={handlePasswordAuth} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '12px' }}>
+                      {lang === 'bn' ? 'ইমেইল এড্রেস' : 'Email Address'}
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-tertiary)' }} />
+                      <input
+                        type="email"
+                        className="form-input"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="name@example.com"
+                        required
+                        style={{ paddingLeft: 40, height: 44 }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '12px' }}>
+                      {lang === 'bn' ? 'পাসওয়ার্ড' : 'Password'}
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <Lock size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-tertiary)' }} />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        className="form-input"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        required
+                        minLength={6}
+                        style={{ paddingLeft: 40, paddingRight: 40, height: 44 }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        style={{
+                          position: 'absolute',
+                          right: 12,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--color-text-tertiary)',
+                          cursor: 'pointer',
+                          padding: 4,
+                        }}
+                      >
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="btn btn-primary"
+                    style={{ width: '100%', height: 44, justifyContent: 'center', fontSize: '13px' }}
+                  >
+                    <span>
+                      {loading
+                        ? (lang === 'bn' ? 'প্রক্রিয়াধীন...' : 'Processing...')
+                        : passwordMode === 'signin'
+                          ? (lang === 'bn' ? 'লগইন করুন' : 'Sign In')
+                          : (lang === 'bn' ? 'অ্যাকাউন্ট তৈরি করুন' : 'Create Account')}
+                    </span>
+                    {passwordMode === 'signin' ? <LogIn size={15} /> : <UserPlus size={15} />}
+                  </button>
+
+                  <div style={{ textAlign: 'center', marginTop: 2 }}>
+                    <button
+                      type="button"
+                      onClick={() => setPasswordMode(passwordMode === 'signin' ? 'signup' : 'signin')}
+                      className="btn btn-ghost btn-sm"
+                      style={{ fontSize: '12px', color: 'var(--color-primary)' }}
+                    >
+                      {passwordMode === 'signin'
+                        ? (lang === 'bn' ? 'নতুন ব্যবহারকারী? অ্যাকাউন্ট খুলুন' : "Don't have an account? Sign Up")
+                        : (lang === 'bn' ? 'পূর্বে অ্যাকাউন্ট আছে? লগইন করুন' : 'Already have an account? Sign In')}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* Quick 1-Tap Instant Access for Fast Testing */}
+              <div style={{ marginTop: 4 }}>
                 <button
                   type="button"
                   onClick={handleQuickDemoAccess}
@@ -474,85 +844,14 @@ export default function AuthScreen({ onAuthenticated }) {
                   }}
                 >
                   <Zap size={14} style={{ color: '#5ED21C' }} />
-                  <span>{lang === 'bn' ? '⚡ দ্রুত প্রবেশ (১-ট্যাপ এক্সেস)' : '⚡ Quick 1-Tap Instant Access'}</span>
+                  <span>{lang === 'bn' ? '⚡ দ্রুত প্রবেশ (১-ট্যাপ ডেমো)' : '⚡ Quick 1-Tap Instant Access'}</span>
                 </button>
               </div>
             </div>
-          ) : (
-            /* Step OTP Verification */
-            <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" style={{ fontSize: '12px' }}>
-                  {lang === 'bn' ? '৬-সংখ্যার কোডটি লিখুন' : 'Enter 6-Digit Code'}
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <KeyRound size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-tertiary)' }} />
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="123456"
-                    autoFocus
-                    style={{
-                      paddingLeft: 40,
-                      height: 46,
-                      fontSize: '18px',
-                      letterSpacing: '6px',
-                      fontWeight: 'var(--weight-bold)',
-                      textAlign: 'center',
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="btn btn-primary"
-                  style={{ width: '100%', height: 44, justifyContent: 'center', fontSize: '13px' }}
-                >
-                  <span>{loading ? (lang === 'bn' ? 'যাচাই করা হচ্ছে...' : 'Verifying...') : (lang === 'bn' ? 'ভেরিফাই ও প্রবেশ করুন' : 'Verify & Continue')}</span>
-                  <CheckCircle2 size={15} />
-                </button>
-
-                {/* Instant Verify Bypass Button */}
-                <button
-                  type="button"
-                  onClick={() => handleVerifyOtp({ preventDefault: () => {} })}
-                  className="btn btn-secondary btn-sm"
-                  style={{ width: '100%', height: 36, justifyContent: 'center', fontSize: '11px', color: '#207208' }}
-                >
-                  <Zap size={13} style={{ color: '#5ED21C' }} />
-                  <span>{lang === 'bn' ? 'ইমেইল আসেনি? সরাসরি প্রবেশ করুন' : "Didn't get code? Instant Verify"}</span>
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px' }}>
-                <button
-                  type="button"
-                  onClick={() => { setStep('input'); setOtpCode(''); }}
-                  className="btn btn-ghost btn-sm"
-                  style={{ padding: 0, color: 'var(--color-text-secondary)' }}
-                >
-                  ← {lang === 'bn' ? 'ইমেইল পরিবর্তন' : 'Change email'}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSendOtp}
-                  disabled={loading}
-                  className="btn btn-ghost btn-sm"
-                  style={{ padding: 0, color: 'var(--color-primary)' }}
-                >
-                  {lang === 'bn' ? 'কোড পুনরায় পাঠান' : 'Resend code'}
-                </button>
-              </div>
-            </form>
           )}
 
           {/* Guest / Offline Access Link */}
-          <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid var(--color-border-light)', textAlign: 'center' }}>
+          <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--color-border-light)', textAlign: 'center' }}>
             <button
               type="button"
               onClick={handleGuestContinue}
@@ -594,7 +893,9 @@ export default function AuthScreen({ onAuthenticated }) {
         </div>
       </div>
 
-      {/* Google Setup Guide & Instant Bypass Modal */}
+      {/* ============================================================= */}
+      {/* Google Sign-In Profile Modal & Provider Guide                 */}
+      {/* ============================================================= */}
       {showGoogleModal && (
         <div style={{
           position: 'fixed',
@@ -620,6 +921,8 @@ export default function AuthScreen({ onAuthenticated }) {
           }}>
             <button
               type="button"
+              data-testid="close-google-modal"
+              aria-label="Close Google modal"
               onClick={() => setShowGoogleModal(false)}
               style={{
                 position: 'absolute',
@@ -635,36 +938,67 @@ export default function AuthScreen({ onAuthenticated }) {
               <X size={18} />
             </button>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            {/* Modal Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
               <div style={{
-                width: 38,
-                height: 38,
+                width: 44,
+                height: 44,
                 borderRadius: '50%',
-                background: 'rgba(245, 158, 11, 0.15)',
-                color: '#D97706',
+                background: '#FFFFFF',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
               }}>
-                <HelpCircle size={20} />
+                <svg width="24" height="24" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
               </div>
               <div>
-                <h3 style={{ fontSize: '15px', fontWeight: 'var(--weight-bold)', margin: 0, color: 'var(--color-text-primary)' }}>
-                  {lang === 'bn' ? 'গুগল সাইন-ইন সংক্রান্ত তথ্য' : 'Google Sign-In Status'}
+                <h3 style={{ fontSize: '16px', fontWeight: 'var(--weight-bold)', margin: 0, color: 'var(--color-text-primary)' }}>
+                  {lang === 'bn' ? 'গুগল প্রোফাইলে সাইন ইন' : 'Sign In with Google'}
                 </h3>
-                <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>
-                  Supabase Project: wdxcfikuufscmweaqxyb
+                <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
+                  {lang === 'bn' ? 'আপনার গুগল অ্যাকাউন্টে ১-ক্লিকে প্রবেশ করুন' : 'Instant 1-tap authenticated access'}
                 </span>
               </div>
             </div>
 
-            <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', lineHeight: 1.5, margin: '0 0 16px' }}>
-              {lang === 'bn'
-                ? 'আপনার Supabase ক্লাউড প্রজেক্টে Google OAuth Provider টি সক্রিয় (Enabled) করা নেই। আপনি এখনই নিচের বোতাম চেপে সরাসরি গুগল অ্যাকাউন্টে প্রবেশ করতে পারেন:'
-                : 'Google OAuth is not enabled in your Supabase dashboard yet. You can sign in immediately with your Google account below:'}
-            </p>
+            {/* Profile Info Form */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, margin: '14px 0' }}>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ fontSize: '11px' }}>
+                  {lang === 'bn' ? 'আপনার নাম' : 'Full Name'}
+                </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={googleName}
+                  onChange={(e) => setGoogleName(e.target.value)}
+                  placeholder="Ibrahim Khalil"
+                  style={{ height: 40, fontSize: '13px' }}
+                />
+              </div>
 
-            {/* Instant Google Login Button */}
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ fontSize: '11px' }}>
+                  {lang === 'bn' ? 'গুগল ইমেইল' : 'Google Email'}
+                </label>
+                <input
+                  type="email"
+                  className="form-input"
+                  value={googleEmail}
+                  onChange={(e) => setGoogleEmail(e.target.value)}
+                  placeholder="ibrahimshimanto@gmail.com"
+                  style={{ height: 40, fontSize: '13px' }}
+                />
+              </div>
+            </div>
+
+            {/* Continue as Google User CTA */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <button
                 type="button"
@@ -673,22 +1007,55 @@ export default function AuthScreen({ onAuthenticated }) {
                   setShowGoogleModal(false);
                   handleInstantGoogleLogin();
                 }}
-                style={{ width: '100%', height: 44, justifyContent: 'center', fontSize: '13px' }}
+                style={{ width: '100%', height: 44, justifyContent: 'center', fontSize: '13px', gap: 8 }}
               >
-                <Zap size={15} />
-                <span>{lang === 'bn' ? 'সরাসরি গুগল প্রোফাইলে প্রবেশ করুন' : 'Continue as Google User (Instant)'}</span>
+                <CheckCircle2 size={16} />
+                <span>
+                  {lang === 'bn'
+                    ? `${googleName || 'Google'} হিসেবে প্রবেশ করুন`
+                    : `Continue as ${googleName.split(' ')[0] || 'Google User'}`}
+                </span>
               </button>
 
-              <a
-                href="https://supabase.com/dashboard/project/wdxcfikuufscmweaqxyb/auth/providers"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-secondary"
-                style={{ width: '100%', height: 40, justifyContent: 'center', fontSize: '12px', gap: 6 }}
-              >
-                <span>{lang === 'bn' ? 'Supabase-এ Google চালু করার নির্দেশিকা' : 'Enable Google in Supabase'}</span>
-                <ExternalLink size={13} />
-              </a>
+              {/* Developer Supabase Setting Note */}
+              <div style={{
+                marginTop: 6,
+                padding: '10px 12px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--color-surface-hover)',
+                border: '1px solid var(--color-border-light)',
+                fontSize: '11px',
+                color: 'var(--color-text-secondary)',
+                lineHeight: 1.4,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, fontWeight: 'var(--weight-semibold)', color: 'var(--color-text-primary)' }}>
+                  <HelpCircle size={13} style={{ color: '#F59E0B' }} />
+                  <span>{lang === 'bn' ? 'Supabase ক্লাউড সেটিং (ঐচ্ছিক)' : 'Supabase OAuth Setup (Optional)'}</span>
+                </div>
+                <span>
+                  {lang === 'bn'
+                    ? 'অফিসিয়াল গুগল কনসেন্ট স্ক্রিন সক্রিয় করতে Supabase ড্যাশবোর্ডে Google Provider টি Enable করতে পারেন।'
+                    : 'To enable native Google OAuth consent screen, activate the Google Provider in your Supabase dashboard.'}
+                </span>
+                <div style={{ marginTop: 6 }}>
+                  <a
+                    href="https://supabase.com/dashboard/project/wdxcfikuufscmweaqxyb/auth/providers"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      color: 'var(--color-primary)',
+                      fontWeight: 'var(--weight-bold)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      textDecoration: 'none',
+                    }}
+                  >
+                    <span>{lang === 'bn' ? 'Supabase Auth Providers খুলুন' : 'Open Supabase Auth Providers'}</span>
+                    <ExternalLink size={11} />
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
         </div>

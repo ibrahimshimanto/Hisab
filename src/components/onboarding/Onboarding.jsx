@@ -35,10 +35,11 @@ const ACCOUNT_TEMPLATES = [
 
 export default function Onboarding({ onComplete }) {
   const { t, lang, changeLanguage } = useTranslation();
-  const { initializeOnboardingAccounts, updateProfile, setFinancialMode, completeOnboarding } = useStore();
+  const { initializeOnboardingAccounts, updateProfile, setFinancialMode, completeOnboarding, user } = useStore();
 
   const [step, setStep] = useState(0);
-  const [name, setName] = useState('');
+  const initialName = user?.user_metadata?.full_name || (user?.email ? user.email.split('@')[0] : '');
+  const [name, setName] = useState(initialName);
   const [nameError, setNameError] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState('fox');
   const [selectedGoal, setSelectedGoal] = useState('savings');
