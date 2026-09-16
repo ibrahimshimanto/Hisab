@@ -23,7 +23,7 @@ import {
 
 export default function Onboarding({ onComplete }) {
   const { t, lang, changeLanguage } = useTranslation();
-  const { initializeOnboardingAccounts, updateProfile, setFinancialMode, completeOnboarding, user } = useStore();
+  const { initializeOnboardingAccounts, updateProfile, setFinancialMode, completeOnboarding, syncToCloud, user } = useStore();
 
   const [step, setStep] = useState(0);
 
@@ -182,6 +182,7 @@ export default function Onboarding({ onComplete }) {
 
     // Complete onboarding in store & localStorage
     completeOnboarding();
+    syncToCloud();
     window.scrollTo(0, 0);
     onComplete?.();
   };
