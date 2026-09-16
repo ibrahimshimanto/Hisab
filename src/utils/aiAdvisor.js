@@ -145,14 +145,20 @@ export function analyzeFinancialHealth({
   }
 
   // Insight B: Mode Compliance
+  const modeDisplayName = {
+    eco: lang === 'bn' ? 'সঞ্চয়' : 'Saver',
+    cruise: lang === 'bn' ? 'ভারসাম্য' : 'Balanced',
+    racing: lang === 'bn' ? 'গ্রোথ' : 'Growth',
+  }[financialMode] || (lang === 'bn' ? 'ভারসাম্য' : 'Balanced');
+
   if (modeCompliant) {
     insights.push({
       id: 'mode-on-track',
       type: 'opportunity',
       badge: lang === 'bn' ? 'মোড লক্ষ্যমাত্রা অর্জিত' : 'Mode Target Met',
       title: lang === 'bn'
-        ? `${financialMode.toUpperCase()} মোডে আপনার সঞ্চয় লক্ষ্য পূরণ হয়েছে!`
-        : `Cruising ahead in ${financialMode.toUpperCase()} Mode (${savingsRate}% vs ${targetSavingRate}% target)!`,
+        ? `${modeDisplayName} মোডে আপনার সঞ্চয় লক্ষ্য পূরণ হয়েছে!`
+        : `On track in ${modeDisplayName} Mode (${savingsRate}% vs ${targetSavingRate}% target)!`,
       desc: lang === 'bn'
         ? `চলতি মাসে আপনি লক্ষ্যের চেয়ে ${savingsRate - targetSavingRate}% বেশি সঞ্চয় করছেন। উদ্বৃত্ত টাকা উচ্চ-মুনাফার ডিপিএস বা এফডিআরে স্থানান্তর করতে পারেন।`
         : `You are outperforming your target savings rate by ${savingsRate - targetSavingRate}%. Consider locking the surplus in a high-yield DPS.`,
@@ -166,8 +172,8 @@ export function analyzeFinancialHealth({
       type: 'alert',
       badge: lang === 'bn' ? 'লক্ষ্যমাত্রা সমন্বয়' : 'Pacing Adjustment',
       title: lang === 'bn'
-        ? `${financialMode.toUpperCase()} মোডে ফিরতে ৳${requiredAdjustment.toLocaleString()} কম খরচ করুন`
-        : `Rebalance spending by ৳${requiredAdjustment.toLocaleString()} to reach ${targetSavingRate}% target`,
+        ? `${modeDisplayName} মোডে ফিরতে ৳${requiredAdjustment.toLocaleString()} কম খরচ করুন`
+        : `Rebalance spending by ৳${requiredAdjustment.toLocaleString()} to reach ${targetSavingRate}% target in ${modeDisplayName} Mode`,
       desc: lang === 'bn'
         ? `আপনার বর্তমান সঞ্চয় হার ${savingsRate}% যা নির্ধারিত লক্ষ্যমাত্রা ${targetSavingRate}% এর চেয়ে কিছুটা কম।`
         : `You are currently saving ${savingsRate}%. Trimming discretionary shopping will bring you back on schedule.`,

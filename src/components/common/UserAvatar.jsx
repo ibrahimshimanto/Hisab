@@ -27,6 +27,32 @@ export default function UserAvatar({
     ...style,
   };
 
+  const isImage = typeof avatar === 'string' && (avatar.startsWith('data:') || avatar.startsWith('http') || avatar.startsWith('blob:'));
+
+  if (isImage) {
+    return (
+      <div
+        className={`user-avatar ${className}`}
+        style={{
+          ...baseStyle,
+          overflow: 'hidden',
+          padding: 0,
+        }}
+      >
+        <img
+          src={avatar}
+          alt={name}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            display: 'block',
+          }}
+        />
+      </div>
+    );
+  }
+
   if (config) {
     return (
       <div

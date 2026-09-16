@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Sun, Moon, Globe, Settings as SettingsIcon, Leaf, Compass, Flame, Cloud, CloudOff } from 'lucide-react';
+import { Sun, Moon, Globe, Settings as SettingsIcon, Leaf, Scale, Compass, Rocket, Flame, Cloud, CloudOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '../../i18n/index.jsx';
 import useStore from '../../store/useStore.js';
@@ -42,10 +42,10 @@ export default function MobileHeader() {
   }, [profile?.name, lang]);
 
   const modeBadge = {
-    eco: { label: lang === 'bn' ? 'ইকো' : 'Eco', icon: Leaf, color: '#207208', bg: 'rgba(94, 210, 28, 0.15)' },
-    cruise: { label: lang === 'bn' ? 'ক্রুজ' : 'Cruise', icon: Compass, color: '#2563EB', bg: 'rgba(59, 130, 246, 0.12)' },
-    racing: { label: lang === 'bn' ? 'রেসিং' : 'Racing', icon: Flame, color: '#D97706', bg: 'rgba(245, 158, 11, 0.15)' },
-  }[financialMode] || { label: 'Cruise', icon: Compass, color: '#2563EB', bg: 'rgba(59, 130, 246, 0.12)' };
+    eco: { label: lang === 'bn' ? 'সঞ্চয়' : 'Saver', icon: Leaf, color: '#207208', bg: 'rgba(94, 210, 28, 0.15)' },
+    cruise: { label: lang === 'bn' ? 'ভারসাম্য' : 'Balanced', icon: Scale, color: '#2563EB', bg: 'rgba(59, 130, 246, 0.12)' },
+    racing: { label: lang === 'bn' ? 'গ্রোথ' : 'Growth', icon: Rocket, color: '#D97706', bg: 'rgba(245, 158, 11, 0.15)' },
+  }[financialMode] || { label: lang === 'bn' ? 'ভারসাম্য' : 'Balanced', icon: Scale, color: '#2563EB', bg: 'rgba(59, 130, 246, 0.12)' };
 
   const ModeIcon = modeBadge.icon;
 

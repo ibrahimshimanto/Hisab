@@ -35,6 +35,7 @@ import FinancialModeCard from '../components/modes/FinancialModeCard.jsx';
 import AiAdvisorModal from '../components/ai/AiAdvisorModal.jsx';
 import RecurringBillsSection from '../components/recurring/RecurringBillsSection.jsx';
 import { analyzeFinancialHealth } from '../utils/aiAdvisor.js';
+import { ProviderLogo } from '../lib/accountProviders.jsx';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
@@ -42,15 +43,31 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { t, lang, formatCurrency, formatDate } = useTranslation();
   const { accounts, transactions, categories, openQuickAdd, theme, financialMode, modeSettings, savingsGoals, openSavingsModal, openCalculatorModal, startTour } = useStore();
-  const [showBalance, setShowBalance] = useState(true);
-  const [breakdownFilter, setBreakdownFilter] = useState('month'); // 'month' | '30days' | 'year' | 'range'
-  const [breakdownStart, setBreakdownStart] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 14);
-    return d.toISOString().slice(0, 10);
+  
+  // Persistent balance visibility
+  const [showBalance, setShowBalance] = useState(() => {
+    try {
+      return localStorage.getItem('hisab_cockpit_show_balance') !== 'false';
+    } catch {
+      return true;
+    }
   });
-  const [breakdownEnd, setBreakdownEnd] = useState(() => new Date().toISOString().slice(0, 10));
-  const [trendHorizon, setTrendHorizon] = useState('6months'); // '6months' | 'year' | '30days'
+
+  const toggleBalance = () => {
+    setShowBalance((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('hisab_cockpit_show_balance', String(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
+
+  // Only 4 filters: '7days' | '30days' | 'month' | 'year'
+  const [breakdownFilter, setBreakdownFilter] = useState('month');
+  const [trendHorizon, setTrendHorizon] = useState('month');
   const [showAiModal, setShowAiModal] = useState(false);
 
   const totalSavings = useMemo(() => {
@@ -100,25 +117,25 @@ export default function Dashboard() {
     return [...transactions].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 6);
   }, [transactions]);
 
-  // Point 4: Category spending calculated based on filter inside Spending Breakdown card
+  // Category spending calculated based on filter (7days, 30days, month, year)
   const categorySpending = useMemo(() => {
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
     const filtered = transactions.filter((t) => {
       if (t.type !== 'expense') return false;
       const d = new Date(t.date);
-      if (breakdownFilter === 'month') {
-        return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+      if (breakdownFilter === '7days') {
+        return d >= sevenDaysAgo;
       }
       if (breakdownFilter === '30days') {
         return d >= thirtyDaysAgo;
       }
+      if (breakdownFilter === 'month') {
+        return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+      }
       if (breakdownFilter === 'year') {
         return d.getFullYear() === currentYear;
-      }
-      if (breakdownFilter === 'range') {
-        const tDate = t.date ? t.date.slice(0, 10) : '';
-        return tDate >= breakdownStart && tDate <= breakdownEnd;
       }
       return true;
     });
@@ -128,19 +145,21 @@ export default function Dashboard() {
       catSpend[t.categoryId] = (catSpend[t.categoryId] || 0) + (t.amount || 0);
     });
     return catSpend;
-  }, [transactions, breakdownFilter, breakdownStart, breakdownEnd, currentYear, currentMonth]);
+  }, [transactions, breakdownFilter, currentYear, currentMonth]);
 
   const breakdownSubtitle = useMemo(() => {
-    if (breakdownFilter === 'month') return t('dashboard.thisMonth');
-    if (breakdownFilter === '30days') return t('dashboard.past30Days');
-    if (breakdownFilter === 'year') return `${t('dashboard.thisYear')} (${currentYear})`;
-    if (breakdownFilter === 'range') return `${breakdownStart} ➔ ${breakdownEnd}`;
+    if (breakdownFilter === '7days') return lang === 'bn' ? 'গত ৭ দিন' : 'Last 7 Days';
+    if (breakdownFilter === '30days') return lang === 'bn' ? 'গত ৩০ দিন' : 'Past 30 Days';
+    if (breakdownFilter === 'month') return lang === 'bn' ? 'চলতি মাস' : 'This Month';
+    if (breakdownFilter === 'year') return lang === 'bn' ? `চলতি বছর (${currentYear})` : `This Year (${currentYear})`;
     return t('dashboard.thisMonth');
-  }, [breakdownFilter, breakdownStart, breakdownEnd, currentYear, t]);
+  }, [breakdownFilter, currentYear, lang, t]);
 
-  // Point 4: Trend data calculated based on filter inside Income vs Expenses card
+  // Trend data calculated based on filter (7days, 30days, month, year)
   const trendData = useMemo(() => {
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    // 1. Year: 12 months
     if (trendHorizon === 'year') {
       return monthNames.map((label, m) => {
         const monthTxns = transactions.filter((t) => {
@@ -154,6 +173,30 @@ export default function Dashboard() {
         };
       });
     }
+
+    // 2. Month: 4 Weeks of current month
+    if (trendHorizon === 'month') {
+      const weeks = [
+        { label: 'W1 (1-7)', start: 1, end: 7 },
+        { label: 'W2 (8-14)', start: 8, end: 14 },
+        { label: 'W3 (15-21)', start: 15, end: 21 },
+        { label: 'W4 (22+)', start: 22, end: 31 },
+      ];
+      return weeks.map((w) => {
+        const weekTxns = transactions.filter((t) => {
+          const d = new Date(t.date);
+          const day = d.getDate();
+          return d.getFullYear() === currentYear && d.getMonth() === currentMonth && day >= w.start && day <= w.end;
+        });
+        return {
+          label: w.label,
+          income: weekTxns.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0),
+          expense: weekTxns.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0),
+        };
+      });
+    }
+
+    // 3. Past 30 Days: 5 intervals of 6 days
     if (trendHorizon === '30days') {
       const intervals = [];
       for (let i = 4; i >= 0; i--) {
@@ -172,30 +215,36 @@ export default function Dashboard() {
       }
       return intervals;
     }
-    // Default: Last 6 months
-    const data = [];
-    for (let i = 5; i >= 0; i--) {
-      const date = new Date(currentYear, currentMonth - i, 1);
-      const y = date.getFullYear();
-      const m = date.getMonth();
-      const monthTxns = transactions.filter((t) => {
-        const d = new Date(t.date);
-        return d.getFullYear() === y && d.getMonth() === m;
+
+    // 4. Last 7 Days: Individual days (Today - 6 days through Today)
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const targetDate = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      const y = targetDate.getFullYear();
+      const m = targetDate.getMonth();
+      const d = targetDate.getDate();
+      const dayTxns = transactions.filter((t) => {
+        const dt = new Date(t.date);
+        return dt.getFullYear() === y && dt.getMonth() === m && dt.getDate() === d;
       });
-      data.push({
-        label: monthNames[m],
-        income: monthTxns.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0),
-        expense: monthTxns.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0),
+      const label = `${dayNames[targetDate.getDay()]} ${d}`;
+      days.push({
+        label,
+        income: dayTxns.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0),
+        expense: dayTxns.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0),
       });
     }
-    return data;
+    return days;
   }, [transactions, trendHorizon, currentYear, currentMonth]);
 
   const trendSubtitle = useMemo(() => {
-    if (trendHorizon === 'year') return `${t('dashboard.thisYear')} (${currentYear})`;
-    if (trendHorizon === '30days') return t('dashboard.past30Days');
-    return t('dashboard.last6Months');
-  }, [trendHorizon, currentYear, t]);
+    if (trendHorizon === '7days') return lang === 'bn' ? 'গত ৭ দিন' : 'Last 7 Days';
+    if (trendHorizon === '30days') return lang === 'bn' ? 'গত ৩০ দিন' : 'Past 30 Days';
+    if (trendHorizon === 'month') return lang === 'bn' ? 'চলতি মাস' : 'This Month';
+    if (trendHorizon === 'year') return lang === 'bn' ? `চলতি বছর (${currentYear})` : `This Year (${currentYear})`;
+    return lang === 'bn' ? 'চলতি মাস' : 'This Month';
+  }, [trendHorizon, currentYear, lang]);
 
   const getCategoryInfo = (categoryId, type) => {
     const allCats = categories[type] || [];
@@ -375,29 +424,22 @@ export default function Dashboard() {
       {/* ========================================================
           1. HERO BALANCE CARD (Fintech Metallic / Obsidian Card)
           ======================================================== */}
-      <div className="hero-card animate-fade-in-up" data-tour="hero-card">
-        {/* Ambient Holographic Waves in Card Background */}
-        <div className="hero-card-bg-waves" aria-hidden="true">
-          <svg viewBox="0 0 650 260" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-            <path d="M0 130 C 160 50, 320 210, 650 90 L 650 260 L 0 260 Z" fill="url(#heroLimeGrad)" opacity="0.14" />
-            <path d="M0 170 C 220 95, 420 240, 650 140" stroke="url(#heroLineGrad1)" strokeWidth="1.5" strokeDasharray="5 7" opacity="0.4" />
-            <path d="M0 110 C 190 35, 390 190, 650 80" stroke="url(#heroLineGrad2)" strokeWidth="1.2" opacity="0.3" />
-            <defs>
-              <linearGradient id="heroLimeGrad" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#5ED21C" stopOpacity="0.35" />
-                <stop offset="100%" stopColor="#22C55E" stopOpacity="0.05" />
-              </linearGradient>
-              <linearGradient id="heroLineGrad1" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#5ED21C" />
-                <stop offset="100%" stopColor="#10B981" />
-              </linearGradient>
-              <linearGradient id="heroLineGrad2" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#77E53B" />
-                <stop offset="100%" stopColor="#5ED21C" />
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
+      <div className="hero-card animate-fade-in-up" data-tour="hero-card" style={{ marginBottom: 10 }}>
+        {/* Subtle Ambient Emerald Aura (Clean, Not Crowded) */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            top: '-40px',
+            right: '-40px',
+            width: '280px',
+            height: '280px',
+            background: 'radial-gradient(circle, rgba(94, 210, 28, 0.18) 0%, rgba(94, 210, 28, 0.04) 55%, transparent 75%)',
+            pointerEvents: 'none',
+            zIndex: 0,
+            borderRadius: '50%',
+          }}
+        />
 
         {/* Card Top Header */}
         <div className="hero-card-header">
@@ -420,7 +462,7 @@ export default function Dashboard() {
               <button
                 type="button"
                 className="hero-privacy-toggle"
-                onClick={() => setShowBalance(!showBalance)}
+                onClick={toggleBalance}
                 title={showBalance ? (lang === 'bn' ? 'ব্যালেন্স লুকান' : 'Hide Balance') : (lang === 'bn' ? 'ব্যালেন্স দেখুন' : 'Show Balance')}
               >
                 {showBalance ? <Eye size={13} /> : <EyeOff size={13} />}
@@ -586,14 +628,16 @@ export default function Dashboard() {
       </div>
 
       {/* ========================================================
-          1.5. FINANCIAL ENGINE COCKPIT (Eco, Cruise, Racing Modes)
+          1.5. FINANCIAL ENGINE COCKPIT (Saver, Balanced, Growth Modes)
           ======================================================== */}
-      <FinancialModeCard />
+      <div style={{ marginBottom: 10 }}>
+        <FinancialModeCard />
+      </div>
 
       {/* ========================================================
           2. VIRTUAL ACCOUNT SOURCE CARDS (Swipeable Strip)
           ======================================================== */}
-      <div style={{ marginBottom: 'var(--space-6)' }}>
+      <div style={{ marginBottom: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-3)' }}>
           <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-primary)' }}>
             {t('accounts.title')} ({accounts.length})
@@ -642,8 +686,8 @@ export default function Dashboard() {
                   <div className="source-card-badge">
                     {acc.type.toUpperCase()}
                   </div>
-                  <div style={{ color: 'var(--color-text-tertiary)' }}>
-                    {getSourceIcon(acc.type)}
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <ProviderLogo providerId={acc.providerId} name={acc.name} type={acc.type} size={18} />
                   </div>
                 </div>
                 <div>
@@ -659,7 +703,7 @@ export default function Dashboard() {
       {/* ========================================================
           3. PULSE STATS (Calculates 30 Days of Data)
           ======================================================== */}
-      <div className="grid-3 dashboard-stats-grid stagger-children" style={{ marginBottom: 'var(--space-6)' }}>
+      <div className="grid-3 dashboard-stats-grid stagger-children" style={{ marginBottom: 10 }}>
         {/* Income Card */}
         <div className="card stat-card">
           <div className="stat-card-top">
@@ -718,7 +762,7 @@ export default function Dashboard() {
       {/* ========================================================
           AI FINANCIAL ADVISOR INSIGHT (Jet Black & Electric Lime Card)
           ======================================================== */}
-      <div className="insight-card animate-fade-in-up">
+      <div className="insight-card animate-fade-in-up" style={{ marginBottom: 10 }}>
         <div className="insight-card-body" style={{ flex: 1, minWidth: 0, zIndex: 1 }}>
           <div className="insight-badge">
             <Sparkles size={12} />
@@ -748,14 +792,14 @@ export default function Dashboard() {
       {/* ========================================================
           USER-CONFIGURED MONTHLY RECURRING BILLS & SUBSCRIPTIONS
           ======================================================== */}
-      <div style={{ marginBottom: 'var(--space-6)' }}>
+      <div style={{ marginBottom: 10 }}>
         <RecurringBillsSection />
       </div>
 
       {/* ========================================================
           SAVINGS, DPS & LOCKED FUNDS SHOWCASE
           ======================================================== */}
-      <div className="card savings-showcase-card animate-fade-in-up" style={{ marginBottom: 'var(--space-6)' }}>
+      <div className="card savings-showcase-card animate-fade-in-up" style={{ marginBottom: 10 }}>
         <div className="savings-showcase-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
             <div className="savings-showcase-icon-cube">
@@ -838,9 +882,9 @@ export default function Dashboard() {
       </div>
 
       {/* ========================================================
-          4. CHARTS ROW (Spending Breakdown & 6-Month Trend)
+          4. CHARTS ROW (Spending Breakdown & Trend)
           ======================================================== */}
-      <div className="grid-2" style={{ marginBottom: 'var(--space-6)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 10, marginBottom: 10 }}>
         {/* Spending Breakdown Donut */}
         <div className="card">
           <div className="card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
@@ -849,13 +893,13 @@ export default function Dashboard() {
               <div className="card-subtitle" style={{ margin: '2px 0 0' }}>{breakdownSubtitle}</div>
             </div>
 
-            {/* Filter Options Inside Card */}
+            {/* Strict 4 Filter Options: Last 7 Days, Past 30 Days, This Month, This Year */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
               {[
-                { id: 'month', label: t('dashboard.thisMonth') },
-                { id: '30days', label: t('dashboard.past30Days') },
-                { id: 'year', label: t('dashboard.thisYear') },
-                { id: 'range', label: t('dashboard.dateRange') },
+                { id: '7days', label: lang === 'bn' ? 'গত ৭ দিন' : 'Last 7 Days' },
+                { id: '30days', label: lang === 'bn' ? 'গত ৩০ দিন' : 'Past 30 Days' },
+                { id: 'month', label: lang === 'bn' ? 'চলতি মাস' : 'This Month' },
+                { id: 'year', label: lang === 'bn' ? 'চলতি বছর' : 'This Year' },
               ].map((opt) => {
                 const active = breakdownFilter === opt.id;
                 return (
@@ -880,43 +924,6 @@ export default function Dashboard() {
                   </button>
                 );
               })}
-              {breakdownFilter === 'range' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'nowrap' }}>
-                  <input
-                    type="date"
-                    value={breakdownStart}
-                    onChange={(e) => setBreakdownStart(e.target.value)}
-                    style={{
-                      padding: '2px 6px',
-                      fontSize: '11px',
-                      height: 24,
-                      width: 116,
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--glass-border)',
-                      background: 'var(--glass-bg-subtle)',
-                      color: 'var(--color-text-primary)',
-                      outline: 'none',
-                    }}
-                  />
-                  <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>➔</span>
-                  <input
-                    type="date"
-                    value={breakdownEnd}
-                    onChange={(e) => setBreakdownEnd(e.target.value)}
-                    style={{
-                      padding: '2px 6px',
-                      fontSize: '11px',
-                      height: 24,
-                      width: 116,
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--glass-border)',
-                      background: 'var(--glass-bg-subtle)',
-                      color: 'var(--color-text-primary)',
-                      outline: 'none',
-                    }}
-                  />
-                </div>
-              )}
             </div>
           </div>
           <div style={{ height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -939,12 +946,13 @@ export default function Dashboard() {
               <div className="card-subtitle" style={{ margin: '2px 0 0' }}>{trendSubtitle}</div>
             </div>
 
-            {/* Filter Options Inside Card */}
+            {/* Strict 4 Filter Options: Last 7 Days, Past 30 Days, This Month, This Year */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
               {[
-                { id: '6months', label: t('dashboard.last6Months') },
-                { id: 'year', label: t('dashboard.thisYear') },
-                { id: '30days', label: t('dashboard.past30Days') },
+                { id: '7days', label: lang === 'bn' ? 'গত ৭ দিন' : 'Last 7 Days' },
+                { id: '30days', label: lang === 'bn' ? 'গত ৩০ দিন' : 'Past 30 Days' },
+                { id: 'month', label: lang === 'bn' ? 'চলতি মাস' : 'This Month' },
+                { id: 'year', label: lang === 'bn' ? 'চলতি বছর' : 'This Year' },
               ].map((opt) => {
                 const active = trendHorizon === opt.id;
                 return (
@@ -980,7 +988,7 @@ export default function Dashboard() {
       {/* ========================================================
           5. RECENT TRANSACTIONS
           ======================================================== */}
-      <div className="card" style={{ marginBottom: 'var(--space-6)' }}>
+      <div className="card" style={{ marginBottom: 10 }}>
         <div className="card-header">
           <div>
             <h3 className="card-title">{t('dashboard.recentTransactions')}</h3>

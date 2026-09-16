@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import {
   Sun,
   Moon,
@@ -7,7 +7,9 @@ import {
   Trash2,
   Check,
   Leaf,
+  Scale,
   Compass,
+  Rocket,
   Flame,
   RotateCcw,
   Sparkles,
@@ -20,6 +22,7 @@ import {
   RefreshCw,
   LogOut,
   Sliders,
+  Camera,
 } from 'lucide-react';
 import { useTranslation } from '../i18n/index.jsx';
 import useStore from '../store/useStore.js';
@@ -58,17 +61,40 @@ export default function Settings() {
   const [saved, setSaved] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState(false);
+  const fileInputRef = useRef(null);
 
-  const handleManualSync = async () => {
-    if (!user) {
-      setAuthModalOpen(true);
-      return;
-    }
-    setIsSyncing(true);
-    await syncToCloud();
-    setIsSyncing(false);
-    setSyncSuccess(true);
-    setTimeout(() => setSyncSuccess(false), 2000);
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxDim = 256;
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+        setAvatar(dataUrl);
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
   };
 
   const userName = profile?.name || (lang === 'bn' ? 'ব্যবহারকারী' : 'User');
@@ -155,9 +181,27 @@ export default function Settings() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', marginTop: 'var(--space-3)' }}>
                 {/* Avatar DP Selection */}
                 <div style={{ margin: 0 }}>
-                  <label className="form-label" style={{ marginBottom: 6 }}>
-                    {lang === 'bn' ? 'প্রোফাইল অবতার (DP)' : 'Profile Avatar (DP)'}
-                  </label>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept="image/*"
+                    onChange={handlePhotoUpload}
+                    style={{ display: 'none' }}
+                  />
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <label className="form-label" style={{ margin: 0 }}>
+                      {lang === 'bn' ? 'প্রোফাইল ছবি / অবতার' : 'Profile Photo / Avatar'}
+                    </label>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      style={{ fontSize: '11px', padding: '3px 8px', gap: 5 }}
+                    >
+                      <Camera size={12} />
+                      <span>{lang === 'bn' ? 'ডিভাইস থেকে আপলোড' : 'Upload from Device'}</span>
+                    </button>
+                  </div>
                   <div style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(6, 1fr)',
@@ -340,25 +384,25 @@ export default function Settings() {
               {[
                 {
                   id: 'eco',
-                  name: lang === 'bn' ? 'ইকো সেভার মোড' : 'Eco-Saver Mode',
-                  desc: lang === 'bn' ? 'কঠোর সঞ্চয় ও নিয়ন্ত্রিত খরচ। সম্পদ গড়ার জন্য আদর্শ।' : 'Maximum wealth accumulation with disciplined safe daily limits.',
+                  name: lang === 'bn' ? 'সঞ্চয় মোড' : 'Saver Mode',
+                  desc: lang === 'bn' ? 'কঠোর সঞ্চয় ও নিয়ন্ত্রিত খরচ। দ্রুত সম্পদ গড়ার জন্য আদর্শ।' : 'Maximum wealth accumulation with disciplined safe daily limits.',
                   icon: Leaf,
                   color: '#207208',
                   bg: 'rgba(94, 210, 28, 0.14)',
                 },
                 {
                   id: 'cruise',
-                  name: lang === 'bn' ? 'ব্যালান্সড ক্রুজ মোড' : 'Daily Cruise Mode',
-                  desc: lang === 'bn' ? 'ভারসাম্যপূর্ণ জীবন ও স্বাভাবিক বাজেট পেস।' : 'Balanced lifestyle with predictable monthly budgeting.',
-                  icon: Compass,
+                  name: lang === 'bn' ? 'ভারসাম্য মোড' : 'Balanced Mode',
+                  desc: lang === 'bn' ? 'ভারসাম্যপূর্ণ জীবন ও স্বাভাবিক নিয়ন্ত্রিত বাজেট পেস।' : 'Balanced lifestyle with predictable monthly budgeting.',
+                  icon: Scale,
                   color: '#2563EB',
                   bg: 'rgba(59, 130, 246, 0.12)',
                 },
                 {
                   id: 'racing',
-                  name: lang === 'bn' ? 'রেসিং এক্সপ্যানশন মোড' : 'Racing Expansion Mode',
-                  desc: lang === 'bn' ? 'উচ্চগতির মূলধন বিনিয়োগ ও দ্রুত সম্প্রসারণ।' : 'Aggressive capital expansion & high burn velocity.',
-                  icon: Flame,
+                  name: lang === 'bn' ? 'গ্রোথ মোড' : 'Growth Mode',
+                  desc: lang === 'bn' ? 'ভবিষ্যতের মূলধন বিনিয়োগ, ব্যবসা ও দ্রুত সম্প্রসারণ।' : 'Aggressive capital expansion & high investment velocity.',
+                  icon: Rocket,
                   color: '#D97706',
                   bg: 'rgba(245, 158, 11, 0.15)',
                 },
