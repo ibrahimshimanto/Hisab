@@ -17,6 +17,7 @@ export default function Transactions() {
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingTxn, setEditingTxn] = useState(null);
+  const [inspectingTxn, setInspectingTxn] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
@@ -197,6 +198,53 @@ export default function Transactions() {
     return filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
   }, [transactions, filterType, filterCategory, filterSource, searchQuery]);
 
+  // Temporal Date Grouping Hook
+  const groupedTransactions = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+    const map = new Map();
+
+    filteredTransactions.forEach((txn) => {
+      const dateStr = txn.date ? txn.date.split('T')[0] : '';
+      let groupLabel = '';
+
+      if (dateStr === todayStr) {
+        groupLabel = lang === 'bn' ? 'আজ' : 'Today';
+      } else if (dateStr === yesterdayStr) {
+        groupLabel = lang === 'bn' ? 'গতকাল' : 'Yesterday';
+      } else {
+        const d = new Date(dateStr);
+        groupLabel = d.toLocaleDateString(lang === 'bn' ? 'bn-BD' : 'en-US', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        });
+      }
+
+      if (!map.has(dateStr)) {
+        map.set(dateStr, {
+          dateStr,
+          label: groupLabel,
+          items: [],
+          netDelta: 0,
+        });
+      }
+
+      const grp = map.get(dateStr);
+      grp.items.push(txn);
+      if (txn.type === 'income') {
+        grp.netDelta += txn.amount;
+      } else if (txn.type === 'expense') {
+        grp.netDelta -= txn.amount;
+      }
+    });
+
+    return Array.from(map.values());
+  }, [filteredTransactions, lang]);
+
   return (
     <div className="animate-fade-in">
       <div className="page-header">
@@ -271,53 +319,116 @@ export default function Transactions() {
             </div>
           </div>
         </div>
+
+        {/* Horizontal Quick Filter Pills */}
+        <div className="filter-chips-scroll" style={{ marginTop: 8 }}>
+          <button
+            type="button"
+            className={`filter-chip-pill ${filterType === 'all' && filterSource === 'all' ? 'active' : ''}`}
+            onClick={() => { setFilterType('all'); setFilterSource('all'); }}
+          >
+            {t('transactions.all')}
+          </button>
+          <button
+            type="button"
+            className={`filter-chip-pill ${filterType === 'expense' ? 'active' : ''}`}
+            onClick={() => setFilterType(filterType === 'expense' ? 'all' : 'expense')}
+          >
+            <ArrowUpRight size={13} style={{ color: '#F43F5E' }} />
+            <span>{t('transactions.expense')}</span>
+          </button>
+          <button
+            type="button"
+            className={`filter-chip-pill ${filterType === 'income' ? 'active' : ''}`}
+            onClick={() => setFilterType(filterType === 'income' ? 'all' : 'income')}
+          >
+            <ArrowDownRight size={13} style={{ color: '#15803D' }} />
+            <span>{t('transactions.income')}</span>
+          </button>
+          {accounts.map((acc) => (
+            <button
+              key={acc.id}
+              type="button"
+              className={`filter-chip-pill ${filterSource === acc.id ? 'active' : ''}`}
+              onClick={() => setFilterSource(filterSource === acc.id ? 'all' : acc.id)}
+            >
+              <span>{acc.name}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Transaction List */}
-      <div className="card">
-        {filteredTransactions.length > 0 ? (
+      {/* Transaction List (Temporally Grouped) */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        {groupedTransactions.length > 0 ? (
           <div>
-            {filteredTransactions.map((txn) => {
-              const cat = getCategoryInfo(txn.categoryId, txn.type);
-              const acc = accounts.find((a) => a.id === txn.accountId);
-              return (
-                <div key={txn.id} className="transaction-row" style={{ cursor: 'pointer' }}>
-                  <div className="transaction-icon" style={{
-                    background: cat?.color ? `${cat.color}20` : 'var(--color-surface-secondary)',
-                    color: cat?.color || 'var(--color-text-secondary)',
-                  }}>
-                    {txn.type === 'income' ? <ArrowDownRight size={18} /> : <ArrowUpRight size={18} />}
+            {groupedTransactions.map((group) => (
+              <div key={group.dateStr} className="transaction-date-group">
+                {/* Sticky Date Group Divider Header */}
+                <div className="transaction-date-header">
+                  <div className="transaction-date-left">
+                    <span className="transaction-date-label">{group.label}</span>
+                    <span className="transaction-date-count">
+                      {group.items.length} {lang === 'bn' ? 'টি লেনদেন' : 'txns'}
+                    </span>
                   </div>
-                  <div className="transaction-details">
-                    <div className="transaction-name">
-                      {txn.description || getCategoryLabel(txn.categoryId, txn.type)}
-                    </div>
-                    <div className="transaction-meta">
-                      <span>{getCategoryLabel(txn.categoryId, txn.type)}</span>
-                      <span>·</span>
-                      <span>{acc?.name || ''}</span>
-                      <span>·</span>
-                      <span>{formatDate(txn.date)}</span>
-                      {txn.recurring && <span className="badge badge-income" style={{ fontSize: 9 }}>↻</span>}
-                    </div>
-                  </div>
-                  <div className={`transaction-amount ${txn.type}`}>
-                    {txn.type === 'income' ? '+' : '-'}{formatCurrency(txn.amount)}
-                  </div>
-                  <div style={{ display: 'flex', gap: 'var(--space-1)' }}>
-                    <button className="btn btn-icon btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); openEdit(txn); }}>
-                      <Edit2 size={14} />
-                    </button>
-                    <button className="btn btn-icon btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); setDeleteConfirm(txn.id); }} style={{ color: 'var(--color-expense)' }}>
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
+                  <span className={`transaction-date-sum ${group.netDelta >= 0 ? 'income' : 'expense'}`}>
+                    {group.netDelta >= 0 ? '+' : ''}{formatCurrency(group.netDelta)}
+                  </span>
                 </div>
-              );
-            })}
+
+                {/* Items in this date group */}
+                <div>
+                  {group.items.map((txn) => {
+                    const cat = getCategoryInfo(txn.categoryId, txn.type);
+                    const acc = accounts.find((a) => a.id === txn.accountId);
+                    return (
+                      <div
+                        key={txn.id}
+                        className="transaction-row"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => setInspectingTxn(txn)}
+                        title={lang === 'bn' ? 'রসিদ দেখতে ট্যাপ করুন' : 'Tap to inspect receipt'}
+                      >
+                        <div className="transaction-icon" style={{
+                          background: cat?.color ? `${cat.color}20` : 'var(--color-surface-secondary)',
+                          color: cat?.color || 'var(--color-text-secondary)',
+                        }}>
+                          {txn.type === 'income' ? <ArrowDownRight size={18} /> : <ArrowUpRight size={18} />}
+                        </div>
+                        <div className="transaction-details">
+                          <div className="transaction-name">
+                            {txn.description || getCategoryLabel(txn.categoryId, txn.type)}
+                          </div>
+                          <div className="transaction-meta">
+                            <span>{getCategoryLabel(txn.categoryId, txn.type)}</span>
+                            <span>·</span>
+                            <span>{acc?.name || ''}</span>
+                            <span>·</span>
+                            <span>{formatDate(txn.date)}</span>
+                            {txn.recurring && <span className="badge badge-income" style={{ fontSize: 9 }}>↻</span>}
+                          </div>
+                        </div>
+                        <div className={`transaction-amount ${txn.type}`}>
+                          {txn.type === 'income' ? '+' : '-'}{formatCurrency(txn.amount)}
+                        </div>
+                        <div style={{ display: 'flex', gap: 'var(--space-1)' }} onClick={(e) => e.stopPropagation()}>
+                          <button className="btn btn-icon btn-ghost btn-sm" onClick={() => openEdit(txn)} title={t('common.edit')}>
+                            <Edit2 size={14} />
+                          </button>
+                          <button className="btn btn-icon btn-ghost btn-sm" onClick={() => setDeleteConfirm(txn.id)} style={{ color: 'var(--color-expense)' }} title={t('common.delete')}>
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
-          <div className="empty-state">
+          <div className="empty-state" style={{ padding: 'var(--space-8)' }}>
             <div className="empty-state-icon"><Filter size={28} /></div>
             <p className="empty-state-title">{t('transactions.noTransactions')}</p>
             <p className="empty-state-desc">{t('transactions.noTransactionsDesc')}</p>
@@ -457,6 +568,154 @@ export default function Transactions() {
             {t('transactions.recurringMonthly')}
           </label>
         </div>
+      </Modal>
+
+      {/* Transaction Receipt Modal */}
+      <Modal
+        isOpen={Boolean(inspectingTxn)}
+        onClose={() => setInspectingTxn(null)}
+        title={lang === 'bn' ? 'লেনদেনের রসিদ ও বিবরণ' : 'Transaction Receipt'}
+        footer={
+          inspectingTxn && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  const id = inspectingTxn.id;
+                  setInspectingTxn(null);
+                  setDeleteConfirm(id);
+                }}
+                style={{ color: 'var(--color-expense)', gap: 5 }}
+              >
+                <Trash2 size={15} />
+                <span>{t('common.delete')}</span>
+              </button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setInspectingTxn(null)}
+                >
+                  {t('common.close')}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => {
+                    const txn = inspectingTxn;
+                    setInspectingTxn(null);
+                    openEdit(txn);
+                  }}
+                  style={{ gap: 5 }}
+                >
+                  <Edit2 size={15} />
+                  <span>{t('common.edit')}</span>
+                </button>
+              </div>
+            </div>
+          )
+        }
+      >
+        {inspectingTxn && (() => {
+          const cat = getCategoryInfo(inspectingTxn.categoryId, inspectingTxn.type);
+          const acc = accounts.find((a) => a.id === inspectingTxn.accountId);
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Receipt Header Card */}
+              <div style={{
+                background: 'var(--color-surface)',
+                border: '1px solid var(--card-inner-border, rgba(17, 20, 17, 0.08))',
+                borderRadius: 'var(--radius-xl)',
+                padding: '20px 16px',
+                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 8,
+              }}>
+                <div style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: '16px',
+                  background: cat?.color ? `${cat.color}22` : 'var(--color-surface-secondary)',
+                  color: cat?.color || 'var(--color-primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  {inspectingTxn.type === 'income' ? <ArrowDownRight size={28} /> : <ArrowUpRight size={28} />}
+                </div>
+                <div style={{
+                  fontSize: '28px',
+                  fontWeight: 'var(--weight-bold)',
+                  fontFamily: "'Outfit', sans-serif",
+                  color: inspectingTxn.type === 'income' ? '#15803D' : 'var(--color-expense)',
+                  letterSpacing: '-0.03em',
+                }}>
+                  {inspectingTxn.type === 'income' ? '+' : '-'}{formatCurrency(inspectingTxn.amount)}
+                </div>
+                <span className={`badge ${inspectingTxn.type === 'income' ? 'badge-income' : 'badge-expense'}`} style={{ fontSize: 11, fontWeight: 700 }}>
+                  {inspectingTxn.type === 'income' ? (lang === 'bn' ? 'আয় (Inflow)' : 'Income (Credit)') : (lang === 'bn' ? 'ব্যয় (Outflow)' : 'Expense (Debit)')}
+                </span>
+              </div>
+
+              {/* Receipt Breakdown Items */}
+              <div style={{
+                background: 'var(--color-surface)',
+                border: '1px solid var(--card-inner-border, rgba(17, 20, 17, 0.08))',
+                borderRadius: 'var(--radius-lg)',
+                padding: '10px 14px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11.5px', color: 'var(--color-text-tertiary)' }}>{t('transactions.category')}</span>
+                  <span style={{ fontSize: '12.5px', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-primary)' }}>
+                    {getCategoryLabel(inspectingTxn.categoryId, inspectingTxn.type)}
+                  </span>
+                </div>
+                <div style={{ height: 1, background: 'var(--card-inner-border, rgba(17, 20, 17, 0.06))' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11.5px', color: 'var(--color-text-tertiary)' }}>{t('transactions.source', 'Account')}</span>
+                  <span style={{ fontSize: '12.5px', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-primary)' }}>
+                    {acc?.name || '—'}
+                  </span>
+                </div>
+                <div style={{ height: 1, background: 'var(--card-inner-border, rgba(17, 20, 17, 0.06))' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11.5px', color: 'var(--color-text-tertiary)' }}>{t('transactions.date')}</span>
+                  <span style={{ fontSize: '12.5px', fontWeight: 'var(--weight-semibold)', color: 'var(--color-text-primary)' }}>
+                    {formatDate(inspectingTxn.date)}
+                  </span>
+                </div>
+                {inspectingTxn.description && (
+                  <>
+                    <div style={{ height: 1, background: 'var(--card-inner-border, rgba(17, 20, 17, 0.06))' }} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                      <span style={{ fontSize: '11.5px', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>{t('transactions.description')}</span>
+                      <span style={{ fontSize: '12.5px', color: 'var(--color-text-primary)', textAlign: 'right' }}>
+                        {inspectingTxn.description}
+                      </span>
+                    </div>
+                  </>
+                )}
+                {inspectingTxn.recurring && (
+                  <>
+                    <div style={{ height: 1, background: 'var(--card-inner-border, rgba(17, 20, 17, 0.06))' }} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '11.5px', color: 'var(--color-text-tertiary)' }}>{t('transactions.recurring')}</span>
+                      <span className="badge badge-income" style={{ fontSize: 10 }}>
+                        {lang === 'bn' ? 'মাসিক পুনরাবৃত্তি' : 'Monthly Recurring'}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </Modal>
 
       {/* Delete Confirm */}

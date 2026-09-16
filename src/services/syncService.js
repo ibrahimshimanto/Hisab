@@ -107,7 +107,7 @@ export function formatBudgetForDb(userId, budget) {
     id: budget.id,
     user_id: userId,
     category_id: budget.categoryId,
-    amount: Number(budget.amount) || 0,
+    amount: Number(budget.amount ?? budget.limit) || 0,
     period: budget.period || 'monthly',
     updated_at: new Date().toISOString(),
   };
@@ -117,10 +117,12 @@ export function formatBudgetForDb(userId, budget) {
  * Format a Supabase budget row into a store budget
  */
 export function formatBudgetFromDb(row) {
+  const amt = Number(row.amount) || 0;
   return {
     id: row.id,
     categoryId: row.category_id,
-    amount: Number(row.amount) || 0,
+    amount: amt,
+    limit: amt,
     period: row.period || 'monthly',
   };
 }

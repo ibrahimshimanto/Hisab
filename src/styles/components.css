@@ -5323,3 +5323,355 @@ body.modal-open .floating-capsule-nav {
     justify-content: flex-end;
   }
 }
+
+/* ============================================
+   ACCOUNT 3-DOT OVERFLOW & ACTIONS MENU
+   ============================================ */
+.account-more-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.account-more-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--card-inner-border, rgba(17, 20, 17, 0.12));
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  min-width: 170px;
+  z-index: 50;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: scaleIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+[data-theme="dark"] .account-more-dropdown {
+  background: #191E19;
+  border-color: var(--card-inner-border, rgba(255, 255, 255, 0.14));
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+}
+
+.account-more-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: var(--weight-medium);
+  color: var(--color-text-primary);
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.account-more-item:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.account-more-item.danger {
+  color: var(--color-expense);
+}
+
+.account-more-item.danger:hover {
+  background: rgba(244, 63, 94, 0.1);
+  color: var(--color-expense);
+}
+
+/* ============================================
+   DANGER ZONE CARD (SETTINGS DATA RESET)
+   ============================================ */
+.danger-zone-card {
+  border: 1px solid rgba(244, 63, 94, 0.3) !important;
+  background: rgba(244, 63, 94, 0.03) !important;
+  padding: var(--space-5);
+  border-radius: var(--radius-xl);
+}
+
+[data-theme="dark"] .danger-zone-card {
+  border: 1px solid rgba(244, 63, 94, 0.35) !important;
+  background: rgba(244, 63, 94, 0.06) !important;
+}
+
+.danger-zone-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.danger-zone-icon-box {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  background: rgba(244, 63, 94, 0.15);
+  color: var(--color-expense);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.danger-zone-title {
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+  margin: 0;
+}
+
+/* ============================================
+   TRANSACTION DATE GROUPS & RECEIPTS
+   ============================================ */
+.transaction-date-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.transaction-date-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px 8px;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--card-inner-border, rgba(17, 20, 17, 0.06));
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+[data-theme="dark"] .transaction-date-header {
+  background: #0B0E0B;
+  border-bottom-color: var(--card-inner-border, rgba(255, 255, 255, 0.08));
+}
+
+.transaction-date-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.transaction-date-label {
+  font-size: 11.5px;
+  font-weight: var(--weight-bold);
+  color: var(--color-text-primary);
+  letter-spacing: -0.01em;
+}
+
+.transaction-date-count {
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+  background: var(--glass-bg-subtle);
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  font-weight: var(--weight-semibold);
+}
+
+.transaction-date-sum {
+  font-size: 11px;
+  font-weight: var(--weight-bold);
+  font-family: 'Outfit', sans-serif;
+}
+
+.transaction-date-sum.income {
+  color: #15803D;
+}
+
+.transaction-date-sum.expense {
+  color: var(--color-expense);
+}
+
+[data-theme="dark"] .transaction-date-sum.income {
+  color: #5ED21C;
+}
+
+/* Filter Chips Scrollbar */
+.filter-chips-scroll {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 0 6px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.filter-chips-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.filter-chip-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: var(--radius-full);
+  font-size: 11.5px;
+  font-weight: var(--weight-semibold);
+  background: var(--color-surface);
+  border: 1px solid var(--card-inner-border, rgba(17, 20, 17, 0.08));
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.filter-chip-pill:hover {
+  border-color: var(--color-primary);
+  color: var(--color-text-primary);
+}
+
+.filter-chip-pill.active {
+  background: #111411;
+  color: #FFFFFF;
+  border-color: #111411;
+}
+
+[data-theme="dark"] .filter-chip-pill {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--card-inner-border, rgba(255, 255, 255, 0.12));
+}
+
+[data-theme="dark"] .filter-chip-pill.active {
+  background: #5ED21C;
+  color: #111411;
+  border-color: #5ED21C;
+}
+
+/* ============================================
+   BUDGETS RESPONSIVE MULTI-COLUMN CARD GRID
+   ============================================ */
+.budget-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 10px;
+}
+
+@media (max-width: 1100px) {
+  .budget-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .budget-cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.budget-card-modern {
+  background: #FFFFFF;
+  border: 1px solid var(--card-inner-border, rgba(17, 20, 17, 0.09));
+  border-radius: var(--radius-xl);
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  transition: transform var(--transition-fast);
+}
+
+[data-theme="dark"] .budget-card-modern {
+  background: #141814;
+  border-color: var(--card-inner-border, rgba(255, 255, 255, 0.12));
+}
+
+.budget-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.budget-card-cat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.budget-cat-pill {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.budget-card-cat-name {
+  font-size: 13.5px;
+  font-weight: var(--weight-bold);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.budget-card-stats {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.budget-card-spent {
+  font-size: 18px;
+  font-weight: var(--weight-bold);
+  font-family: 'Outfit', sans-serif;
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+}
+
+.budget-card-limit {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  font-weight: var(--weight-normal);
+}
+
+.budget-card-pace {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: -4px;
+}
+
+/* Quick Increment Chips for Onboarding & Modals */
+.quick-increment-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.quick-increment-chip {
+  background: var(--glass-bg-subtle);
+  border: 1px solid var(--card-inner-border, rgba(17, 20, 17, 0.08));
+  color: var(--color-text-secondary);
+  font-size: 10.5px;
+  font-weight: var(--weight-semibold);
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.quick-increment-chip:hover {
+  background: rgba(94, 210, 28, 0.15);
+  color: #207208;
+  border-color: rgba(94, 210, 28, 0.3);
+}
+
+[data-theme="dark"] .quick-increment-chip:hover {
+  color: #5ED21C;
+}
