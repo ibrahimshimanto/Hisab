@@ -224,6 +224,7 @@ export async function fetchCloudData(userId = null) {
           avatar: profileData.avatar_url || null,
           email: profileData.email || '',
         },
+        onboardingComplete: profileData.onboarding_complete !== undefined ? Boolean(profileData.onboarding_complete) : undefined,
         settings: {
           theme: profileData.theme || 'light',
           currency: profileData.currency || 'BDT',
