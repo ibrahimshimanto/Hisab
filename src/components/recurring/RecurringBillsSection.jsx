@@ -257,7 +257,8 @@ export default function RecurringBillsSection({ title, subtitle, showCardWrapper
         padding: '14px 16px',
         borderRadius: 'var(--radius-xl)',
         background: 'var(--color-surface-secondary)',
-        border: '1px solid var(--color-border)',
+        border: 'none',
+        boxShadow: 'none',
         marginBottom: 'var(--space-4)',
         display: 'flex',
         flexDirection: 'column',
@@ -276,7 +277,7 @@ export default function RecurringBillsSection({ title, subtitle, showCardWrapper
             background: 'var(--color-surface)',
             padding: '2px 8px',
             borderRadius: 'var(--radius-full)',
-            border: '1px solid var(--color-border)',
+            border: 'none',
           }}>
             {progressPct}% {lang === 'bn' ? 'সম্পন্ন' : 'Complete'}
           </div>
@@ -449,12 +450,8 @@ export default function RecurringBillsSection({ title, subtitle, showCardWrapper
                   padding: '14px 16px',
                   borderRadius: 'var(--radius-xl)',
                   background: 'var(--color-surface)',
-                  border: isPaid
-                    ? '1px solid rgba(16, 185, 129, 0.25)'
-                    : bill.status === 'overdue'
-                    ? '1px solid rgba(244, 63, 94, 0.35)'
-                    : '1px solid var(--glass-border)',
-                  boxShadow: 'var(--shadow-sm)',
+                  border: 'none',
+                  boxShadow: 'none',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',

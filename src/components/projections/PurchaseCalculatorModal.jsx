@@ -109,7 +109,7 @@ export default function PurchaseCalculatorModal() {
       <div
         className="modal modal-md animate-scale-in"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 520, borderRadius: 'var(--radius-2xl)' }}
+        style={{ maxWidth: 520, borderRadius: '28px', border: 'none', boxShadow: 'none' }}
       >
         {/* Header */}
         <div className="modal-header">
@@ -120,7 +120,7 @@ export default function PurchaseCalculatorModal() {
                 height: 38,
                 borderRadius: 'var(--radius-lg)',
                 background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(139, 92, 246, 0.05))',
-                border: '1px solid rgba(139, 92, 246, 0.35)',
+                border: 'none',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -238,31 +238,42 @@ export default function PurchaseCalculatorModal() {
               </span>
             </div>
           </div>
+        </div>
 
-          {/* Action Footer */}
-          <div className="modal-footer" style={{ padding: 0, marginTop: 4 }}>
-            <button type="button" className="btn btn-secondary" onClick={closeCalculatorModal}>
-              {t('common.close')}
-            </button>
-            <button
-              type="button"
-              className="btn btn-lime"
-              onClick={handleSaveAsGoal}
-              disabled={createdSuccess || !targetPrice || Number(targetPrice) <= 0}
-            >
-              {createdSuccess ? (
-                <>
-                  <CheckCircle2 size={16} />
-                  <span>{t('calculator.savedSuccess')}</span>
-                </>
-              ) : (
-                <>
-                  <ShoppingBag size={16} />
-                  <span>{t('calculator.saveAsGoal')}</span>
-                </>
-              )}
-            </button>
-          </div>
+        {/* Action Footer */}
+        <div
+          className="modal-footer"
+          style={{
+            padding: 'var(--space-4) var(--space-6)',
+            borderTop: 'none',
+            background: 'var(--glass-bg-elevated)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            gap: 'var(--space-3)',
+          }}
+        >
+          <button type="button" className="btn btn-secondary" onClick={closeCalculatorModal}>
+            {t('common.close')}
+          </button>
+          <button
+            type="button"
+            className="btn btn-lime"
+            onClick={handleSaveAsGoal}
+            disabled={createdSuccess || !targetPrice || Number(targetPrice) <= 0}
+          >
+            {createdSuccess ? (
+              <>
+                <CheckCircle2 size={16} />
+                <span>{t('calculator.savedSuccess')}</span>
+              </>
+            ) : (
+              <>
+                <ShoppingBag size={16} />
+                <span>{t('calculator.saveAsGoal')}</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>,
