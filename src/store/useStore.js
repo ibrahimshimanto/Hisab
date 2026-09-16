@@ -10,6 +10,7 @@ import {
   pushSavingsGoal,
   pushRecurringBill,
   pushProfile,
+  getOrCreateClientUserId,
 } from '../services/syncService.js';
 
 const STORAGE_KEY = 'hisab-data';
@@ -78,9 +79,7 @@ function loadFromStorage() {
     if (!raw) return null;
     const data = JSON.parse(raw);
     if (data) {
-      if (!data.accounts || data.accounts.length === 0) {
-        data.accounts = defaultAccounts;
-      } else {
+      if (data.accounts && Array.isArray(data.accounts) && data.accounts.length > 0) {
         const { accounts, transactions, adjustments, hasDuplicates } = consolidateAccounts(
           data.accounts,
           data.transactions,
@@ -284,7 +283,7 @@ export const defaultRecurringBills = [
 ];
 
 const initialState = {
-  accounts: defaultAccounts,
+  accounts: [],
   transactions: [],
   budgets: [],
   adjustments: [],
@@ -321,7 +320,7 @@ const initialState = {
 function backgroundSync(actionType, data, extra = {}) {
   try {
     const user = useStore?.getState?.()?.user;
-    const userId = user?.id || null;
+    const userId = user?.id || getOrCreateClientUserId();
 
     if (actionType === 'transaction') {
       pushTransaction(userId, data, extra.action || 'upsert');
@@ -439,15 +438,12 @@ const useStore = create((set, get) => ({
 
       let currentUser = activeSession?.user || null;
       if (!currentUser && typeof window !== 'undefined') {
-        try {
-          const fallbackRaw = localStorage.getItem('hisab_active_user');
-          if (fallbackRaw) {
-            currentUser = JSON.parse(fallbackRaw);
-            activeSession = { user: currentUser };
-          }
-        } catch {
-          // ignore
-        }
+        const clientUserId = getOrCreateClientUserId();
+        currentUser = {
+          id: clientUserId,
+          email: 'guest@hisab.app',
+          isAnonymous: true,
+        };
       }
 
       set({
@@ -457,8 +453,8 @@ const useStore = create((set, get) => ({
         isAuthLoading: false,
       });
 
-      // Automatically sync and pull from cloud on startup
-      const cloudResult = await fetchCloudData(currentUser?.id || null);
+      // Automatically sync and pull from cloud for this client user
+      const cloudResult = await fetchCloudData(currentUser.id);
       if (cloudResult.success) {
         const hasCloudData =
           (cloudResult.data.transactions?.length > 0) ||
@@ -471,8 +467,11 @@ const useStore = create((set, get) => ({
           get().hydrateFromCloud(cloudResult.data);
           set({ syncStatus: 'synced', lastSyncedAt: new Date().toISOString() });
         } else {
-          // If cloud is fresh/empty, upload current store state to cloud
-          await uploadLocalDataToCloud(currentUser?.id || null, get());
+          // If cloud has no data for this user yet, upload current local state if user has accounts
+          const currentAccounts = get().accounts || [];
+          if (currentAccounts.length > 0) {
+            await uploadLocalDataToCloud(currentUser.id, get());
+          }
           set({ syncStatus: 'synced', lastSyncedAt: new Date().toISOString() });
         }
       } else {
@@ -540,8 +539,9 @@ const useStore = create((set, get) => ({
 
   syncToCloud: async () => {
     const user = get().user;
+    const userId = user?.id || getOrCreateClientUserId();
     set({ syncStatus: 'syncing' });
-    const res = await uploadLocalDataToCloud(user?.id || null, get());
+    const res = await uploadLocalDataToCloud(userId, get());
     if (res.success) {
       set({ syncStatus: 'synced', lastSyncedAt: new Date().toISOString() });
     } else {
@@ -551,8 +551,9 @@ const useStore = create((set, get) => ({
 
   syncFromCloud: async () => {
     const user = get().user;
+    const userId = user?.id || getOrCreateClientUserId();
     set({ syncStatus: 'syncing' });
-    const res = await fetchCloudData(user?.id || null);
+    const res = await fetchCloudData(userId);
     if (res.success) {
       get().hydrateFromCloud(res.data);
       set({ syncStatus: 'synced', lastSyncedAt: new Date().toISOString() });

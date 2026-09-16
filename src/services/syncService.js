@@ -1,6 +1,44 @@
 import { getSupabase } from '../lib/supabase.js';
 
 /**
+ * Generate a standard RFC4122 v4 UUID
+ */
+export function generateUUID() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+/**
+ * Retrieve or generate a persistent, unique client device UUID.
+ * Guarantees every user has their own isolated Supabase records.
+ */
+export function getOrCreateClientUserId() {
+  if (typeof window === 'undefined') return '00000000-0000-4000-8000-000000000000';
+  try {
+    const activeRaw = localStorage.getItem('hisab_active_user');
+    if (activeRaw) {
+      const parsed = JSON.parse(activeRaw);
+      if (parsed?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(parsed.id)) {
+        return parsed.id;
+      }
+    }
+  } catch {}
+
+  let deviceId = localStorage.getItem('hisab_device_user_id');
+  if (!deviceId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(deviceId)) {
+    deviceId = generateUUID();
+    localStorage.setItem('hisab_device_user_id', deviceId);
+  }
+  return deviceId;
+}
+
+/**
  * Format a store account into a Supabase account row
  */
 export function formatAccountForDb(userId, acc) {
@@ -166,9 +204,8 @@ export function formatRecurringBillFromDb(row) {
 }
 
 /**
- * Fetch all cloud records for an authenticated user
-/**
- * Fetch all cloud records from Supabase
+ * Fetch all cloud records strictly for a specific user ID.
+ * Guarantees zero leakage of other users' accounts or data.
  */
 export async function fetchCloudData(userId = null) {
   const supabase = getSupabase();
@@ -176,22 +213,26 @@ export async function fetchCloudData(userId = null) {
     return { success: false, error: 'Supabase client missing' };
   }
 
+  const effectiveUserId = userId || getOrCreateClientUserId();
+  if (!effectiveUserId) {
+    return {
+      success: true,
+      data: {
+        profile: {},
+        onboardingComplete: undefined,
+        settings: {},
+        financialMode: 'cruise',
+        modeSettings: undefined,
+        accounts: [],
+        transactions: [],
+        budgets: [],
+        savingsGoals: [],
+        recurringBills: [],
+      },
+    };
+  }
+
   try {
-    let accountsQuery = supabase.from('accounts').select('*');
-    let txQuery = supabase.from('transactions').select('*').order('date', { ascending: false });
-    let budgetsQuery = supabase.from('budgets').select('*');
-    let savingsQuery = supabase.from('savings_goals').select('*');
-    let billsQuery = supabase.from('recurring_bills').select('*');
-    let profileQuery = userId ? supabase.from('profiles').select('*').eq('id', userId).maybeSingle() : Promise.resolve({ data: null });
-
-    if (userId) {
-      accountsQuery = accountsQuery.eq('user_id', userId);
-      txQuery = txQuery.eq('user_id', userId);
-      budgetsQuery = budgetsQuery.eq('user_id', userId);
-      savingsQuery = savingsQuery.eq('user_id', userId);
-      billsQuery = billsQuery.eq('user_id', userId);
-    }
-
     const [
       profileRes,
       accountsRes,
@@ -200,12 +241,12 @@ export async function fetchCloudData(userId = null) {
       savingsRes,
       billsRes,
     ] = await Promise.all([
-      profileQuery,
-      accountsQuery,
-      txQuery,
-      budgetsQuery,
-      savingsQuery,
-      billsQuery,
+      supabase.from('profiles').select('*').eq('id', effectiveUserId).maybeSingle(),
+      supabase.from('accounts').select('*').eq('user_id', effectiveUserId),
+      supabase.from('transactions').select('*').eq('user_id', effectiveUserId).order('date', { ascending: false }),
+      supabase.from('budgets').select('*').eq('user_id', effectiveUserId),
+      supabase.from('savings_goals').select('*').eq('user_id', effectiveUserId),
+      supabase.from('recurring_bills').select('*').eq('user_id', effectiveUserId),
     ]);
 
     const profileData = profileRes?.data || {};
@@ -245,7 +286,7 @@ export async function fetchCloudData(userId = null) {
 }
 
 /**
- * Upload all current store state to Supabase in bulk
+ * Upload all current store state to Supabase for the current client user
  */
 export async function uploadLocalDataToCloud(userId = null, state) {
   const supabase = getSupabase();
@@ -253,51 +294,59 @@ export async function uploadLocalDataToCloud(userId = null, state) {
     return { success: false, error: 'Supabase client missing' };
   }
 
+  const effectiveUserId = userId || getOrCreateClientUserId();
+  if (!effectiveUserId) {
+    return { success: false, error: 'User ID missing' };
+  }
+
   try {
-    // 1. Profile & Preferences (if user authenticated)
-    if (userId) {
+    // 1. Profile & Preferences (safely catch foreign key constraint if profiles is linked to auth.users)
+    try {
       const profilePayload = {
-        id: userId,
+        id: effectiveUserId,
         full_name: state.profile?.name || '',
-        email: state.user?.email || '',
+        email: state.user?.email || 'guest@hisab.app',
+        avatar_url: state.profile?.avatar || null,
         monthly_salary: Number(state.profile?.monthlySalary) || 0,
         currency: state.settings?.currency || 'BDT',
         theme: state.settings?.theme || 'light',
         financial_mode: state.financialMode || 'cruise',
         mode_settings: state.modeSettings || {},
-        onboarding_complete: true,
+        onboarding_complete: Boolean(state.onboardingComplete),
         updated_at: new Date().toISOString(),
       };
       await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' });
+    } catch (profErr) {
+      console.warn('Profile sync note:', profErr);
     }
 
     // 2. Accounts
     if (state.accounts && state.accounts.length > 0) {
-      const dbAccounts = state.accounts.map((a) => formatAccountForDb(userId, a));
+      const dbAccounts = state.accounts.map((a) => formatAccountForDb(effectiveUserId, a));
       await supabase.from('accounts').upsert(dbAccounts, { onConflict: 'id' });
     }
 
     // 3. Transactions
     if (state.transactions && state.transactions.length > 0) {
-      const dbTxns = state.transactions.map((t) => formatTransactionForDb(userId, t));
+      const dbTxns = state.transactions.map((t) => formatTransactionForDb(effectiveUserId, t));
       await supabase.from('transactions').upsert(dbTxns, { onConflict: 'id' });
     }
 
     // 4. Budgets
     if (state.budgets && state.budgets.length > 0) {
-      const dbBudgets = state.budgets.map((b) => formatBudgetForDb(userId, b));
+      const dbBudgets = state.budgets.map((b) => formatBudgetForDb(effectiveUserId, b));
       await supabase.from('budgets').upsert(dbBudgets, { onConflict: 'id' });
     }
 
     // 5. Savings Goals
     if (state.savingsGoals && state.savingsGoals.length > 0) {
-      const dbGoals = state.savingsGoals.map((g) => formatSavingsGoalForDb(userId, g));
+      const dbGoals = state.savingsGoals.map((g) => formatSavingsGoalForDb(effectiveUserId, g));
       await supabase.from('savings_goals').upsert(dbGoals, { onConflict: 'id' });
     }
 
     // 6. Recurring Bills
     if (state.recurringBills && state.recurringBills.length > 0) {
-      const dbBills = state.recurringBills.map((b) => formatRecurringBillForDb(userId, b));
+      const dbBills = state.recurringBills.map((b) => formatRecurringBillForDb(effectiveUserId, b));
       await supabase.from('recurring_bills').upsert(dbBills, { onConflict: 'id' });
     }
 
@@ -315,13 +364,14 @@ export async function pushTransaction(userId = null, txn, action = 'upsert') {
   const supabase = getSupabase();
   if (!supabase) return;
 
+  const effectiveUserId = userId || getOrCreateClientUserId();
+  if (!effectiveUserId) return;
+
   try {
     if (action === 'delete') {
-      let q = supabase.from('transactions').delete().eq('id', txn.id);
-      if (userId) q = q.eq('user_id', userId);
-      await q;
+      await supabase.from('transactions').delete().eq('id', txn.id).eq('user_id', effectiveUserId);
     } else {
-      const payload = formatTransactionForDb(userId, txn);
+      const payload = formatTransactionForDb(effectiveUserId, txn);
       await supabase.from('transactions').upsert(payload, { onConflict: 'id' });
     }
   } catch (err) {
@@ -336,13 +386,14 @@ export async function pushAccount(userId = null, account, action = 'upsert') {
   const supabase = getSupabase();
   if (!supabase) return;
 
+  const effectiveUserId = userId || getOrCreateClientUserId();
+  if (!effectiveUserId) return;
+
   try {
     if (action === 'delete') {
-      let q = supabase.from('accounts').delete().eq('id', account.id);
-      if (userId) q = q.eq('user_id', userId);
-      await q;
+      await supabase.from('accounts').delete().eq('id', account.id).eq('user_id', effectiveUserId);
     } else {
-      const payload = formatAccountForDb(userId, account);
+      const payload = formatAccountForDb(effectiveUserId, account);
       await supabase.from('accounts').upsert(payload, { onConflict: 'id' });
     }
   } catch (err) {
@@ -351,14 +402,17 @@ export async function pushAccount(userId = null, account, action = 'upsert') {
 }
 
 /**
- * Delta Push: Multiple Accounts (e.g. after a balance transfer or adjustments)
+ * Delta Push: Multiple Accounts
  */
 export async function pushAccounts(userId = null, accounts) {
   const supabase = getSupabase();
   if (!supabase || !accounts || accounts.length === 0) return;
 
+  const effectiveUserId = userId || getOrCreateClientUserId();
+  if (!effectiveUserId) return;
+
   try {
-    const payloads = accounts.map((a) => formatAccountForDb(userId, a));
+    const payloads = accounts.map((a) => formatAccountForDb(effectiveUserId, a));
     await supabase.from('accounts').upsert(payloads, { onConflict: 'id' });
   } catch (err) {
     console.warn('pushAccounts background sync warning:', err);
@@ -372,13 +426,14 @@ export async function pushBudget(userId = null, budget, action = 'upsert') {
   const supabase = getSupabase();
   if (!supabase) return;
 
+  const effectiveUserId = userId || getOrCreateClientUserId();
+  if (!effectiveUserId) return;
+
   try {
     if (action === 'delete') {
-      let q = supabase.from('budgets').delete().eq('id', budget.id);
-      if (userId) q = q.eq('user_id', userId);
-      await q;
+      await supabase.from('budgets').delete().eq('id', budget.id).eq('user_id', effectiveUserId);
     } else {
-      const payload = formatBudgetForDb(userId, budget);
+      const payload = formatBudgetForDb(effectiveUserId, budget);
       await supabase.from('budgets').upsert(payload, { onConflict: 'id' });
     }
   } catch (err) {
@@ -393,13 +448,14 @@ export async function pushSavingsGoal(userId = null, goal, action = 'upsert') {
   const supabase = getSupabase();
   if (!supabase) return;
 
+  const effectiveUserId = userId || getOrCreateClientUserId();
+  if (!effectiveUserId) return;
+
   try {
     if (action === 'delete') {
-      let q = supabase.from('savings_goals').delete().eq('id', goal.id);
-      if (userId) q = q.eq('user_id', userId);
-      await q;
+      await supabase.from('savings_goals').delete().eq('id', goal.id).eq('user_id', effectiveUserId);
     } else {
-      const payload = formatSavingsGoalForDb(userId, goal);
+      const payload = formatSavingsGoalForDb(effectiveUserId, goal);
       await supabase.from('savings_goals').upsert(payload, { onConflict: 'id' });
     }
   } catch (err) {
@@ -414,13 +470,14 @@ export async function pushRecurringBill(userId = null, bill, action = 'upsert') 
   const supabase = getSupabase();
   if (!supabase) return;
 
+  const effectiveUserId = userId || getOrCreateClientUserId();
+  if (!effectiveUserId) return;
+
   try {
     if (action === 'delete') {
-      let q = supabase.from('recurring_bills').delete().eq('id', bill.id);
-      if (userId) q = q.eq('user_id', userId);
-      await q;
+      await supabase.from('recurring_bills').delete().eq('id', bill.id).eq('user_id', effectiveUserId);
     } else {
-      const payload = formatRecurringBillForDb(userId, bill);
+      const payload = formatRecurringBillForDb(effectiveUserId, bill);
       await supabase.from('recurring_bills').upsert(payload, { onConflict: 'id' });
     }
   } catch (err) {
@@ -433,11 +490,14 @@ export async function pushRecurringBill(userId = null, bill, action = 'upsert') 
  */
 export async function pushProfile(userId = null, data) {
   const supabase = getSupabase();
-  if (!supabase || !userId) return;
+  if (!supabase) return;
+
+  const effectiveUserId = userId || getOrCreateClientUserId();
+  if (!effectiveUserId) return;
 
   try {
     const payload = {
-      id: userId,
+      id: effectiveUserId,
       ...data,
       updated_at: new Date().toISOString(),
     };
@@ -446,4 +506,3 @@ export async function pushProfile(userId = null, data) {
     console.warn('pushProfile background sync warning:', err);
   }
 }
-
