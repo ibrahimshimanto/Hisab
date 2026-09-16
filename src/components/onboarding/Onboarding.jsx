@@ -4,63 +4,91 @@ import {
   User,
   Wallet,
   Plus,
-  Smartphone,
-  Building2,
   ArrowRight,
   Check,
-  Sparkles,
   AlertCircle,
-  Banknote,
-  Shield,
+  Camera,
+  Trash2,
+  ChevronDown,
 } from 'lucide-react';
 import { useTranslation } from '../../i18n/index.jsx';
 import useStore from '../../store/useStore.js';
 import HisabLogo from '../common/HisabLogo.jsx';
-import UserAvatar from '../common/UserAvatar.jsx';
-import { AVATAR_OPTIONS, getAvatarConfig } from '../../lib/avatars.js';
-
-const GOAL_OPTIONS = [
-  { id: 'expenses', icon: '🎯', labelEn: 'Control Expenses', labelBn: 'খরচের হিসাব', descEn: 'Track daily spending', descBn: 'দৈনন্দিন কেনাকাটা অপ্টিমাইজ', mode: 'eco' },
-  { id: 'savings', icon: '🏦', labelEn: 'Grow Savings', labelBn: 'সঞ্চয় বৃদ্ধি', descEn: 'Build emergency safety', descBn: 'জরুরি তহবিল তৈরি', mode: 'cruise' },
-  { id: 'projects', icon: '🚀', labelEn: 'Future Projects', labelBn: 'ভবিষ্যতের প্রজেক্ট', descEn: 'Invest in goals & plans', descBn: 'বড় লক্ষ্য ও কেনাকাটা', mode: 'racing' },
-  { id: 'bills', icon: '⚡', labelEn: 'Manage Bills', labelBn: 'বিল ও খরচ', descEn: 'Never miss due dates', descBn: 'সময়মতো বিল পরিশোধ', mode: 'cruise' },
-];
-
-const ACCOUNT_TEMPLATES = [
-  { type: 'mfs', name: 'bKash', icon: Smartphone, defaultBal: '5000', color: '#E2136E', bg: 'rgba(226, 19, 110, 0.12)' },
-  { type: 'mfs', name: 'Nagad', icon: Smartphone, defaultBal: '3000', color: '#F7941D', bg: 'rgba(247, 148, 29, 0.12)' },
-  { type: 'bank', name: 'City Bank', icon: Building2, defaultBal: '25000', color: '#005A9C', bg: 'rgba(0, 90, 156, 0.12)' },
-  { type: 'wallet', name: 'Cash Wallet', icon: Banknote, defaultBal: '2000', color: '#10B981', bg: 'rgba(16, 185, 129, 0.12)' },
-];
+import {
+  MFS_PROVIDERS,
+  BANK_PROVIDERS,
+  WALLET_PROVIDERS,
+  ProviderLogo,
+} from '../../lib/accountProviders.jsx';
 
 export default function Onboarding({ onComplete }) {
   const { t, lang, changeLanguage } = useTranslation();
   const { initializeOnboardingAccounts, updateProfile, setFinancialMode, completeOnboarding, user } = useStore();
 
   const [step, setStep] = useState(0);
+
+  // Profile Step State
   const initialName = user?.user_metadata?.full_name || (user?.email ? user.email.split('@')[0] : '');
   const [name, setName] = useState(initialName);
   const [nameError, setNameError] = useState('');
-  const [selectedAvatar, setSelectedAvatar] = useState('fox');
-  const [selectedGoal, setSelectedGoal] = useState('savings');
+  const [profilePhoto, setProfilePhoto] = useState(user?.user_metadata?.avatar_url || '');
 
-  // Account form
+  // Account Setup State
   const [accounts, setAccounts] = useState([]);
-  const [addingAccount, setAddingAccount] = useState(false);
-  const [accType, setAccType] = useState('mfs');
-  const [accName, setAccName] = useState('');
+  const [accType, setAccType] = useState('mfs'); // 'mfs' | 'bank' | 'wallet'
+  const [selectedProviderId, setSelectedProviderId] = useState('bkash');
+  const [accName, setAccName] = useState('bKash');
   const [accBalance, setAccBalance] = useState('');
 
   const nameInputRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const steps = [
     { icon: Globe, title: t('onboarding.selectLanguage') },
-    { icon: User, title: lang === 'bn' ? 'প্রোফাইল ও অ্যাভাটার' : 'Profile & Avatar' },
+    { icon: User, title: lang === 'bn' ? 'প্রোফাইল সাজান' : 'Setup Profile' },
     { icon: Wallet, title: t('onboarding.setupAccounts') },
   ];
 
+  // Handle Photo Upload from Device with client-side canvas compression for smooth storage
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxDim = 256;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+        setProfilePhoto(dataUrl);
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleNextStep = () => {
-    // Validation on Step 1 (Name is mandatory)
     if (step === 1) {
       if (!name.trim()) {
         setNameError(
@@ -76,26 +104,51 @@ export default function Onboarding({ onComplete }) {
     setStep(step + 1);
   };
 
-  const handleAddTemplate = (tpl) => {
-    const exists = accounts.some((a) => a.name.toLowerCase() === tpl.name.toLowerCase());
-    if (exists) return;
-    setAccounts([...accounts, {
-      type: tpl.type,
-      name: tpl.name,
-      balance: parseFloat(tpl.defaultBal) || 0,
-    }]);
+  // Handle Type Switch in Account Form
+  const handleTypeChange = (type) => {
+    setAccType(type);
+    if (type === 'mfs') {
+      setSelectedProviderId('bkash');
+      setAccName(lang === 'bn' ? 'বিকাশ' : 'bKash');
+    } else if (type === 'bank') {
+      setSelectedProviderId('brac');
+      setAccName(lang === 'bn' ? 'ব্র্যাক ব্যাংক' : 'BRAC Bank');
+    } else {
+      setSelectedProviderId('cash_wallet');
+      setAccName(lang === 'bn' ? 'ক্যাশ ওয়ালেট' : 'Cash Wallet');
+    }
   };
 
-  const handleAddCustomAccount = () => {
-    if (!accName.trim()) return;
-    setAccounts([...accounts, {
-      type: accType,
-      name: accName.trim(),
-      balance: parseFloat(accBalance) || 0,
-    }]);
-    setAccName('');
+  // Handle Provider Dropdown Change
+  const handleProviderChange = (e) => {
+    const provId = e.target.value;
+    setSelectedProviderId(provId);
+
+    const providerList = accType === 'mfs'
+      ? MFS_PROVIDERS
+      : accType === 'bank'
+      ? BANK_PROVIDERS
+      : WALLET_PROVIDERS;
+
+    const matched = providerList.find((p) => p.id === provId);
+    if (matched) {
+      setAccName(lang === 'bn' ? (matched.nameBn || matched.name) : matched.name);
+    }
+  };
+
+  // Add Account to Local List
+  const handleAddAccount = () => {
+    const finalName = accName.trim() || (accType === 'mfs' ? 'bKash' : accType === 'bank' ? 'Bank Account' : 'Cash Wallet');
+    setAccounts([
+      ...accounts,
+      {
+        type: accType,
+        providerId: selectedProviderId,
+        name: finalName,
+        balance: parseFloat(accBalance) || 0,
+      },
+    ]);
     setAccBalance('');
-    setAddingAccount(false);
   };
 
   const handleRemoveAccount = (index) => {
@@ -103,27 +156,28 @@ export default function Onboarding({ onComplete }) {
   };
 
   const handleFinish = (isSkipping = false) => {
-    // If user was typing an account when clicking finish, auto-commit it
     let finalAccounts = [...accounts];
-    if (!isSkipping && accName.trim()) {
+
+    // If user filled in an account without clicking "+ Add Account", commit it automatically
+    if (!isSkipping && accName.trim() && (accBalance !== '' || accounts.length === 0)) {
       finalAccounts.push({
         type: accType,
+        providerId: selectedProviderId,
         name: accName.trim(),
         balance: parseFloat(accBalance) || 0,
       });
     }
 
-    const chosenGoal = GOAL_OPTIONS.find((g) => g.id === selectedGoal);
+    // Save profile with name and uploaded device photo
     updateProfile({
       name: name.trim() || (lang === 'bn' ? 'ব্যবহারকারী' : 'User'),
-      avatar: selectedAvatar,
+      avatar: profilePhoto || '',
     });
 
-    if (chosenGoal?.mode) {
-      setFinancialMode(chosenGoal.mode);
-    }
+    // Default to Balanced mode
+    setFinancialMode('cruise');
 
-    // Initialize user accounts cleanly (replaces demo data)
+    // Initialize user accounts cleanly
     initializeOnboardingAccounts(isSkipping ? [] : finalAccounts);
 
     // Complete onboarding in store & localStorage
@@ -131,7 +185,12 @@ export default function Onboarding({ onComplete }) {
     onComplete?.();
   };
 
-  const activeAvatarObj = getAvatarConfig(selectedAvatar) || AVATAR_OPTIONS[0];
+  // Active providers based on selected tab
+  const currentProviderList = accType === 'mfs'
+    ? MFS_PROVIDERS
+    : accType === 'bank'
+    ? BANK_PROVIDERS
+    : WALLET_PROVIDERS;
 
   return (
     <div style={{
@@ -145,7 +204,7 @@ export default function Onboarding({ onComplete }) {
       position: 'relative',
       zIndex: 1,
     }}>
-      {/* Top Ambient Glow */}
+      {/* Ambient Radial Backdrop Glow */}
       <div style={{
         position: 'fixed',
         top: '-150px',
@@ -166,8 +225,8 @@ export default function Onboarding({ onComplete }) {
         animation: 'fadeInUp 0.35s ease',
       }}>
         {/* Brand Header */}
-        <div style={{ textAlign: 'center', marginBottom: 'var(--space-5)' }}>
-          <HisabLogo variant="charcoal" size={54} style={{ margin: '0 auto var(--space-2)' }} />
+        <div style={{ textAlign: 'center', marginBottom: 'var(--space-4)' }}>
+          <HisabLogo variant="charcoal" size={52} style={{ margin: '0 auto var(--space-2)' }} />
           <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 'var(--weight-extrabold)', letterSpacing: '-0.02em', color: 'var(--color-text-primary)' }}>
             {t('onboarding.welcome')}
           </h1>
@@ -192,7 +251,7 @@ export default function Onboarding({ onComplete }) {
           ))}
         </div>
 
-        {/* Step Container Card */}
+        {/* Main Step Container Card */}
         <div className="card" style={{
           padding: '24px 22px',
           boxShadow: '0 12px 36px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04)',
@@ -276,164 +335,152 @@ export default function Onboarding({ onComplete }) {
           )}
 
           {/* ==========================================================
-              STEP 1: PROFILE & AVATAR (NAME MANDATORY, NO SALARY)
+              STEP 1: PROFILE SETUP (DEVICE PHOTO UPLOAD + NAME *)
               ========================================================== */}
           {step === 1 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-              {/* Avatar Selector Section */}
-              <div>
-                <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <span style={{ fontWeight: 'var(--weight-bold)' }}>
-                    {lang === 'bn' ? 'প্রোফাইল অ্যাভাটার (DP) বেছে নিন' : 'Choose Your Profile Avatar (DP)'}
-                  </span>
-                  <span style={{ fontSize: '11px', color: '#5ED21C', fontWeight: 'var(--weight-bold)', background: 'rgba(94, 210, 28, 0.12)', padding: '2px 8px', borderRadius: 'var(--radius-full)' }}>
-                    {lang === 'bn' ? activeAvatarObj.labelBn : activeAvatarObj.labelEn}
-                  </span>
-                </label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {/* Profile Photo Upload Center */}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 12,
+                padding: '16px 0 4px',
+              }}>
+                {/* Hidden File Input */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/*"
+                  onChange={handlePhotoUpload}
+                  style={{ display: 'none' }}
+                />
 
-                {/* Hero Avatar Card */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '14px 18px',
-                  background: 'var(--color-surface-secondary)',
-                  borderRadius: 'var(--radius-xl)',
-                  marginBottom: 12,
-                  border: '1px solid var(--color-border-light)',
-                  gap: 16,
-                  position: 'relative',
-                  overflow: 'hidden',
-                }}>
-                  {/* Subtle Ambient Radial Glow matching active avatar */}
-                  <div style={{
-                    position: 'absolute',
-                    top: 0,
-                    right: 0,
-                    width: 150,
-                    height: '100%',
-                    background: `radial-gradient(circle at right center, ${activeAvatarObj.shadowColor || 'rgba(94, 210, 28, 0.2)'} 0%, transparent 75%)`,
-                    pointerEvents: 'none',
-                  }} />
-
-                  <div style={{ position: 'relative' }}>
-                    <UserAvatar
-                      avatar={selectedAvatar}
-                      name={name}
-                      size={66}
+                {/* Avatar Preview Circle */}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => fileInputRef.current?.click()}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click(); }}
+                  style={{
+                    position: 'relative',
+                    width: 96,
+                    height: 96,
+                    borderRadius: '50%',
+                    cursor: 'pointer',
+                    boxShadow: '0 0 0 3px #5ED21C, 0 8px 25px rgba(94, 210, 28, 0.25)',
+                    background: 'var(--color-surface-secondary)',
+                    overflow: 'visible',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'transform var(--transition-fast)',
+                  }}
+                  title={lang === 'bn' ? 'ছবি আপলোড করতে ক্লিক করুন' : 'Click to upload photo'}
+                >
+                  {profilePhoto ? (
+                    <img
+                      src={profilePhoto}
+                      alt="Profile"
                       style={{
-                        boxShadow: `0 0 0 3px #5ED21C, 0 8px 24px ${activeAvatarObj.shadowColor || 'rgba(94, 210, 28, 0.35)'}`,
-                        transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+                        width: '100%',
+                        height: '100%',
+                        borderRadius: '50%',
+                        objectFit: 'cover',
                       }}
                     />
+                  ) : (
                     <div style={{
-                      position: 'absolute',
-                      bottom: -2,
-                      right: -2,
-                      width: 22,
-                      height: 22,
+                      width: '100%',
+                      height: '100%',
                       borderRadius: '50%',
-                      background: '#5ED21C',
-                      color: '#111411',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      boxShadow: '0 2px 6px rgba(0, 0, 0, 0.25)',
+                      background: 'linear-gradient(135deg, #111411 0%, #2A302A 100%)',
+                      color: '#FFFFFF',
+                      fontSize: '32px',
+                      fontWeight: 'var(--weight-black)',
                     }}>
-                      <Check size={12} strokeWidth={3} />
+                      {(name.trim() || 'U').charAt(0).toUpperCase()}
                     </div>
-                  </div>
-                  <div style={{ zIndex: 1, minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: '15px', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-primary)' }}>
-                      {name.trim() || (lang === 'bn' ? 'আপনার প্রোফাইল' : 'Your Profile')}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
-                      <span style={{
-                        fontSize: '12px',
-                        fontWeight: 'var(--weight-semibold)',
-                        color: 'var(--color-text-secondary)',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 4,
-                      }}>
-                        <Sparkles size={13} style={{ color: '#5ED21C' }} />
-                        {lang === 'bn' ? activeAvatarObj.labelBn : activeAvatarObj.labelEn}
-                      </span>
-                      {activeAvatarObj.traitEn && (
-                        <span style={{
-                          fontSize: '10px',
-                          fontWeight: 'var(--weight-bold)',
-                          padding: '2px 7px',
-                          borderRadius: 'var(--radius-full)',
-                          background: 'rgba(94, 210, 28, 0.12)',
-                          color: '#207208',
-                          border: '1px solid rgba(94, 210, 28, 0.25)',
-                        }}>
-                          {lang === 'bn' ? activeAvatarObj.traitBn : activeAvatarObj.traitEn}
-                        </span>
-                      )}
-                    </div>
+                  )}
+
+                  {/* Camera Action Badge */}
+                  <div style={{
+                    position: 'absolute',
+                    bottom: -2,
+                    right: -2,
+                    width: 30,
+                    height: 30,
+                    borderRadius: '50%',
+                    backgroundColor: '#5ED21C',
+                    color: '#111411',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.25)',
+                    border: '2px solid var(--color-surface)',
+                  }}>
+                    <Camera size={15} strokeWidth={2.5} />
                   </div>
                 </div>
 
-                {/* 12-Avatar Tactile Grid */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(6, 1fr)',
-                  gap: 8,
-                }}>
-                  {AVATAR_OPTIONS.map((opt) => {
-                    const isSelected = selectedAvatar === opt.id;
-                    return (
+                {/* Upload Action Label & Remove Option */}
+                <div style={{ textAlign: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      fontSize: '13px',
+                      fontWeight: 'var(--weight-bold)',
+                      color: 'var(--color-primary-dark)',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <Camera size={14} />
+                    <span>{profilePhoto ? (lang === 'bn' ? 'ছবি পরিবর্তন করুন' : 'Change Photo') : (lang === 'bn' ? 'ডিভাইস থেকে ছবি আপলোড করুন' : 'Upload Photo from Device')}</span>
+                  </button>
+
+                  {profilePhoto && (
+                    <div style={{ marginTop: 4 }}>
                       <button
-                        key={opt.id}
                         type="button"
-                        onClick={() => setSelectedAvatar(opt.id)}
-                        style={{
-                          background: opt.bg,
-                          border: 'none',
-                          borderRadius: 'var(--radius-lg)',
-                          aspectRatio: '1',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '24px',
-                          cursor: 'pointer',
-                          transform: isSelected ? 'scale(1.12)' : 'scale(1)',
-                          transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                          boxShadow: isSelected
-                            ? `0 0 0 2px var(--color-surface), 0 0 0 4.5px #5ED21C, 0 8px 24px ${opt.shadowColor || 'rgba(94, 210, 28, 0.4)'}`
-                            : 'inset 0 1px 1px rgba(255, 255, 255, 0.3), 0 2px 6px rgba(0, 0, 0, 0.08)',
-                          zIndex: isSelected ? 2 : 1,
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setProfilePhoto('');
+                          if (fileInputRef.current) fileInputRef.current.value = '';
                         }}
-                        title={`${lang === 'bn' ? opt.labelBn : opt.labelEn} (${lang === 'bn' ? opt.traitBn : opt.traitEn})`}
+                        style={{
+                          fontSize: '11px',
+                          color: 'var(--color-expense)',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                        }}
                       >
-                        <span style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.18))' }}>
-                          {opt.emoji}
-                        </span>
+                        <Trash2 size={12} />
+                        <span>{lang === 'bn' ? 'ছবি মুছে ফেলুন' : 'Remove Photo'}</span>
                       </button>
-                    );
-                  })}
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Name Input (MANDATORY with Live Validation) */}
+              {/* Name Input (* in label, NO mandatory tag badge) */}
               <div className="form-group" style={{ margin: 0 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <label className="form-label" style={{ margin: 0, fontWeight: 'var(--weight-bold)' }}>
-                    {lang === 'bn' ? 'আপনার নাম বা ডাকনাম' : 'What should we call you?'}
-                  </label>
-                  <span style={{
-                    fontSize: '10px',
-                    fontWeight: 'var(--weight-bold)',
-                    color: '#DC2626',
-                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                    padding: '2px 7px',
-                    borderRadius: 'var(--radius-full)',
-                    border: '1px solid rgba(239, 68, 68, 0.25)',
-                  }}>
-                    {lang === 'bn' ? 'আবশ্যক *' : 'Mandatory *'}
-                  </span>
-                </div>
+                <label className="form-label" style={{ marginBottom: 6, fontWeight: 'var(--weight-bold)' }}>
+                  {lang === 'bn' ? 'আপনার নাম *' : 'What should we call you? *'}
+                </label>
 
                 <input
                   ref={nameInputRef}
@@ -476,151 +523,173 @@ export default function Onboarding({ onComplete }) {
                   </div>
                 )}
               </div>
-
-              {/* Primary Goal Selector */}
-              <div>
-                <label className="form-label" style={{ marginBottom: 6, fontWeight: 'var(--weight-bold)' }}>
-                  {lang === 'bn' ? 'আপনার প্রধান আর্থিক লক্ষ্য কী?' : "What's your primary financial goal?"}
-                </label>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: 8,
-                }}>
-                  {GOAL_OPTIONS.map((goal) => {
-                    const isSelected = selectedGoal === goal.id;
-                    return (
-                      <button
-                        key={goal.id}
-                        type="button"
-                        onClick={() => setSelectedGoal(goal.id)}
-                        style={{
-                          padding: '10px 12px',
-                          borderRadius: 'var(--radius-lg)',
-                          border: `1.5px solid ${isSelected ? '#5ED21C' : 'var(--color-border)'}`,
-                          background: isSelected ? 'rgba(94, 210, 28, 0.08)' : 'var(--color-surface)',
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          transition: 'all var(--transition-fast)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: 3,
-                          boxShadow: isSelected ? '0 2px 10px rgba(94, 210, 28, 0.15)' : 'none',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: '18px' }}>{goal.icon}</span>
-                          {isSelected && (
-                            <div style={{
-                              width: 16,
-                              height: 16,
-                              borderRadius: '50%',
-                              backgroundColor: '#5ED21C',
-                              color: '#111411',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}>
-                              <Check size={10} strokeWidth={3} />
-                            </div>
-                          )}
-                        </div>
-                        <span style={{ fontSize: '12px', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-primary)' }}>
-                          {lang === 'bn' ? goal.labelBn : goal.labelEn}
-                        </span>
-                        <span style={{ fontSize: '10px', color: 'var(--color-text-tertiary)', lineHeight: 1.2 }}>
-                          {lang === 'bn' ? goal.descBn : goal.descEn}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
             </div>
           )}
 
           {/* ==========================================================
-              STEP 2: SETUP ACCOUNTS (RECHECKED & FULLY FUNCTIONAL)
+              STEP 2: SETUP ACCOUNTS (AUTHENTIC BANGLADESH MFS & BANKS)
               ========================================================== */}
           {step === 2 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', margin: 0 }}>
                 {lang === 'bn'
-                  ? 'আপনার টাকা কোথায় আছে? দ্রুত যুক্ত করতে নিচের অপশনে ট্যাপ করুন অথবা কাস্টম অ্যাকাউন্ট তৈরি করুন:'
-                  : 'Add your primary wallets or accounts to start tracking your net worth:'}
+                  ? 'আপনার ব্যাংক, বিকাশ, নগদ বা ক্যাশ ওয়ালেট যুক্ত করে সম্পদ পর্যবেক্ষণ শুরু করুন:'
+                  : 'Add your primary bank, bKash, Nagad or cash wallets to track your total net worth:'}
               </p>
 
-              {/* 1-Tap Quick Add Template Chips */}
-              <div>
-                <label className="form-label" style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginBottom: 6 }}>
-                  {lang === 'bn' ? '১-ট্যাপে অ্যাকাউন্ট যুক্ত করুন:' : '1-Tap Quick Add:'}
-                </label>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: 8,
-                }}>
-                  {ACCOUNT_TEMPLATES.map((tpl) => {
-                    const isAdded = accounts.some((a) => a.name.toLowerCase() === tpl.name.toLowerCase());
-                    const Icon = tpl.icon;
-                    return (
-                      <button
-                        key={tpl.name}
-                        type="button"
-                        onClick={() => handleAddTemplate(tpl)}
-                        disabled={isAdded}
+              {/* Account Creator Form Box */}
+              <div style={{
+                padding: 14,
+                background: 'var(--color-surface-secondary)',
+                borderRadius: 'var(--radius-lg)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+                border: '1px solid var(--color-border)',
+              }}>
+                {/* 3 Account Type Selector Tabs */}
+                <div className="toggle-group" style={{ width: '100%' }}>
+                  {[
+                    { id: 'mfs', label: lang === 'bn' ? 'মোবাইল ব্যাংকিং (MFS)' : 'MFS' },
+                    { id: 'bank', label: lang === 'bn' ? 'ব্যাংক (Bank)' : 'Bank' },
+                    { id: 'wallet', label: lang === 'bn' ? 'ক্যাশ ওয়ালেট' : 'Cash Wallet' },
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      className={`toggle-option ${accType === tab.id ? 'active' : ''}`}
+                      onClick={() => handleTypeChange(tab.id)}
+                      style={{ flex: 1, textAlign: 'center', fontSize: '12px', padding: '6px 4px' }}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Provider Selection Row with Brand Logo */}
+                <div>
+                  <label className="form-label" style={{ fontSize: '11px', fontWeight: 'var(--weight-bold)', marginBottom: 4 }}>
+                    {accType === 'mfs'
+                      ? (lang === 'bn' ? 'MFS প্রোভাইডার নির্বাচন করুন:' : 'Select MFS Provider:')
+                      : accType === 'bank'
+                      ? (lang === 'bn' ? 'ব্যাংক নির্বাচন করুন:' : 'Select Bank:')
+                      : (lang === 'bn' ? 'ক্যাশ ক্যাটাগরি:' : 'Wallet Type:')}
+                  </label>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {/* Live Provider Logo Box */}
+                    <div style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 'var(--radius-md)',
+                      background: 'var(--color-surface)',
+                      border: '1px solid var(--color-border)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}>
+                      <ProviderLogo providerId={selectedProviderId} type={accType} size={24} />
+                    </div>
+
+                    {/* Styled Select Dropdown */}
+                    <div style={{ position: 'relative', flex: 1 }}>
+                      <select
+                        className="form-input form-select"
+                        value={selectedProviderId}
+                        onChange={handleProviderChange}
                         style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          padding: '10px 12px',
-                          borderRadius: 'var(--radius-lg)',
-                          border: `1px solid ${isAdded ? '#5ED21C' : 'var(--color-border)'}`,
-                          background: isAdded ? 'rgba(94, 210, 28, 0.08)' : 'var(--color-surface)',
-                          cursor: isAdded ? 'default' : 'pointer',
-                          textAlign: 'left',
-                          opacity: isAdded ? 0.85 : 1,
-                          transition: 'all var(--transition-fast)',
+                          height: 42,
+                          paddingRight: 32,
+                          fontWeight: 'var(--weight-semibold)',
+                          background: 'var(--color-surface)',
                         }}
                       >
-                        <div style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: 'var(--radius-md)',
-                          background: tpl.bg,
-                          color: tpl.color,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                        }}>
-                          <Icon size={14} />
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: '12px', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-primary)' }}>
-                            {tpl.name}
-                          </div>
-                          <div style={{ fontSize: '10px', color: 'var(--color-text-tertiary)' }}>
-                            ৳{Number(tpl.defaultBal).toLocaleString()}
-                          </div>
-                        </div>
-                        {isAdded ? (
-                          <Check size={14} style={{ color: '#5ED21C', flexShrink: 0 }} />
-                        ) : (
-                          <Plus size={14} style={{ color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
-                        )}
-                      </button>
-                    );
-                  })}
+                        {currentProviderList.map((prov) => (
+                          <option key={prov.id} value={prov.id}>
+                            {lang === 'bn' ? (prov.nameBn || prov.name) : prov.name}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown
+                        size={15}
+                        style={{
+                          position: 'absolute',
+                          right: 12,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          pointerEvents: 'none',
+                          color: 'var(--color-text-tertiary)',
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
+
+                {/* Account Custom Label & Balance Inputs */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>
+                    <label className="form-label" style={{ fontSize: '11px', marginBottom: 4 }}>
+                      {lang === 'bn' ? 'অ্যাকাউন্টের নাম:' : 'Account Label:'}
+                    </label>
+                    <input
+                      className="form-input"
+                      type="text"
+                      value={accName}
+                      onChange={(e) => setAccName(e.target.value)}
+                      placeholder={accType === 'mfs' ? 'bKash Personal' : 'City Bank Salary'}
+                      style={{ height: 38, fontSize: '13px' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="form-label" style={{ fontSize: '11px', marginBottom: 4 }}>
+                      {lang === 'bn' ? 'বর্তমান ব্যালেন্স (৳):' : 'Initial Balance (৳):'}
+                    </label>
+                    <input
+                      className="form-input"
+                      type="number"
+                      value={accBalance}
+                      onChange={(e) => setAccBalance(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddAccount();
+                        }
+                      }}
+                      placeholder="0"
+                      style={{ height: 38, fontSize: '13px' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Add Account Button */}
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleAddAccount}
+                  style={{
+                    height: 38,
+                    fontSize: '12.5px',
+                    fontWeight: 'var(--weight-bold)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <Plus size={15} strokeWidth={2.5} />
+                  <span>{lang === 'bn' ? '+ অ্যাকাউন্ট তালিকায় যোগ করুন' : '+ Add Account to List'}</span>
+                </button>
               </div>
 
               {/* Added Accounts List */}
               {accounts.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <label className="form-label" style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', margin: 0 }}>
-                    {lang === 'bn' ? `সংযুক্ত অ্যাকাউন্টসমূহ (${accounts.length}টি):` : `Added Accounts (${accounts.length}):`}
+                  <label className="form-label" style={{ fontSize: '11.5px', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-secondary)', margin: 0 }}>
+                    {lang === 'bn' ? `যুক্তকৃত অ্যাকাউন্টসমূহ (${accounts.length}টি):` : `Added Accounts (${accounts.length}):`}
                   </label>
+
                   {accounts.map((acc, i) => (
                     <div
                       key={i}
@@ -636,140 +705,53 @@ export default function Onboarding({ onComplete }) {
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <div style={{
-                          width: 28,
-                          height: 28,
+                          width: 32,
+                          height: 32,
                           borderRadius: 'var(--radius-sm)',
-                          background: 'rgba(94, 210, 28, 0.15)',
-                          color: '#207208',
+                          background: 'var(--color-surface)',
+                          border: '1px solid var(--color-border)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
+                          flexShrink: 0,
                         }}>
-                          {acc.type === 'mfs' ? <Smartphone size={14} /> : acc.type === 'bank' ? <Building2 size={14} /> : <Banknote size={14} />}
+                          <ProviderLogo providerId={acc.providerId} type={acc.type} size={20} />
                         </div>
                         <div>
-                          <div style={{ fontSize: '12px', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-primary)' }}>
+                          <div style={{ fontSize: '13px', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-primary)' }}>
                             {acc.name}
                           </div>
                           <div style={{ fontSize: '10px', color: 'var(--color-text-tertiary)', textTransform: 'uppercase' }}>
-                            {acc.type}
+                            {acc.type === 'mfs' ? 'MFS' : acc.type === 'bank' ? 'Bank' : 'Cash'}
                           </div>
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={{ fontSize: '13px', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-primary)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span style={{ fontSize: '14px', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-primary)' }}>
                           ৳{Number(acc.balance).toLocaleString()}
                         </span>
                         <button
                           type="button"
                           onClick={() => handleRemoveAccount(i)}
+                          title="Remove"
                           style={{
                             background: 'transparent',
                             border: 'none',
                             color: 'var(--color-expense)',
                             cursor: 'pointer',
-                            fontSize: '11px',
-                            padding: '2px 4px',
+                            padding: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
                           }}
                         >
-                          ✕
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </div>
                   ))}
                 </div>
-              )}
-
-              {/* Custom Add Account Drawer */}
-              {addingAccount ? (
-                <div style={{
-                  padding: 14,
-                  background: 'var(--color-surface-secondary)',
-                  borderRadius: 'var(--radius-lg)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 10,
-                  border: '1px solid var(--color-border)',
-                }}>
-                  <div className="toggle-group" style={{ width: '100%' }}>
-                    {['mfs', 'bank', 'wallet'].map((type) => (
-                      <button
-                        key={type}
-                        type="button"
-                        className={`toggle-option ${accType === type ? 'active' : ''}`}
-                        onClick={() => setAccType(type)}
-                        style={{ flex: 1, textAlign: 'center' }}
-                      >
-                        {t(`accounts.${type}`)}
-                      </button>
-                    ))}
-                  </div>
-
-                  <input
-                    className="form-input"
-                    type="text"
-                    value={accName}
-                    onChange={(e) => setAccName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAddCustomAccount();
-                      }
-                    }}
-                    placeholder={accType === 'mfs' ? 'bKash / Nagad' : accType === 'bank' ? 'City Bank' : 'Cash'}
-                    style={{ height: 40 }}
-                  />
-
-                  <input
-                    className="form-input"
-                    type="number"
-                    value={accBalance}
-                    onChange={(e) => setAccBalance(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAddCustomAccount();
-                      }
-                    }}
-                    placeholder="Initial Balance (৳0)"
-                    style={{ height: 40 }}
-                  />
-
-                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => setAddingAccount(false)}
-                    >
-                      {t('common.cancel')}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-primary btn-sm"
-                      onClick={handleAddCustomAccount}
-                    >
-                      {t('common.add')}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  style={{
-                    width: '100%',
-                    border: '1.5px dashed var(--color-border)',
-                    justifyContent: 'center',
-                    height: 40,
-                    fontSize: '12px',
-                    fontWeight: 'var(--weight-bold)',
-                  }}
-                  onClick={() => setAddingAccount(true)}
-                >
-                  <Plus size={14} />
-                  <span>{lang === 'bn' ? '+ কাস্টম অ্যাকাউন্ট যোগ করুন' : '+ Add Custom Account'}</span>
-                </button>
               )}
             </div>
           )}
@@ -780,7 +762,7 @@ export default function Onboarding({ onComplete }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginTop: 18,
+          marginTop: 16,
           gap: 12,
         }}>
           {step > 0 ? (
@@ -830,7 +812,7 @@ export default function Onboarding({ onComplete }) {
               }}
             >
               <span>
-                {accounts.length > 0 || accName.trim()
+                {accounts.length > 0 || accBalance !== ''
                   ? (lang === 'bn' ? 'সংরক্ষণ করুন ও ড্যাশবোর্ডে যান' : 'Save & Go to Dashboard')
                   : (lang === 'bn' ? 'ড্যাশবোর্ডে প্রবেশ করুন' : 'Go to Dashboard')}
               </span>

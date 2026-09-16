@@ -11,7 +11,7 @@ import {
   Filler,
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
-import { TrendingUp, ShieldCheck, Zap, Sparkles, Compass, Flame, Leaf } from 'lucide-react';
+import { TrendingUp, ShieldCheck, Zap, Sparkles, Scale, Compass, Rocket, Flame, Leaf } from 'lucide-react';
 import { useTranslation } from '../../i18n/index.jsx';
 import useStore from '../../store/useStore.js';
 
@@ -281,9 +281,9 @@ export default function ProjectionChart() {
             <span className="proj-metric-label">{t('projections.projectedBalance')} ({horizon}m)</span>
             <span className={`mode-badge-pill ${financialMode}`}>
               {financialMode === 'eco' && <Leaf size={10} />}
-              {financialMode === 'cruise' && <Compass size={10} />}
-              {financialMode === 'racing' && <Flame size={10} />}
-              <span>{financialMode.toUpperCase()}</span>
+              {financialMode === 'cruise' && <Scale size={10} />}
+              {financialMode === 'racing' && <Rocket size={10} />}
+              <span>{financialMode === 'eco' ? (lang === 'bn' ? 'সঞ্চয়' : 'SAVER') : financialMode === 'cruise' ? (lang === 'bn' ? 'ভারসাম্য' : 'BALANCED') : (lang === 'bn' ? 'গ্রোথ' : 'GROWTH')}</span>
             </span>
           </div>
           <span className="proj-metric-val highlight">{formatCurrency(projectedNetWorth)}</span>

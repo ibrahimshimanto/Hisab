@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { I18nProvider } from './i18n/index.jsx';
 import useStore from './store/useStore.js';
 import Layout from './components/layout/Layout.jsx';
-import AuthScreen from './components/auth/AuthScreen.jsx';
 import Onboarding from './components/onboarding/Onboarding.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Accounts from './pages/Accounts.jsx';
@@ -66,12 +65,7 @@ function AppContent() {
     );
   }
 
-  // 2. Not logged in: Show AuthScreen (Google Sign In / Email OTP)
-  if (!user) {
-    return <AuthScreen />;
-  }
-
-  // 3. Logged in, but hasn't completed onboarding: Show Onboarding
+  // 1. If onboarding not completed yet: Show Onboarding directly
   if (!onboardingComplete) {
     return <Onboarding />;
   }

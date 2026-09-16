@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Sliders, RotateCcw, ChevronDown, ChevronUp, Leaf, Compass, Zap, Flame, ShieldAlert, Sparkles, TrendingUp, Info } from 'lucide-react';
+import { Sliders, RotateCcw, ChevronDown, ChevronUp, Leaf, Scale, Compass, Rocket, Zap, Flame, ShieldAlert, Sparkles, TrendingUp, Info } from 'lucide-react';
 import useStore from '../../store/useStore.js';
 import { useTranslation } from '../../i18n/index.jsx';
 
@@ -48,7 +48,7 @@ export default function FinancialModeCard() {
   // Mode meta configuration
   const modeConfigs = {
     eco: {
-      name: lang === 'bn' ? 'ইকো সেভার মোড' : 'Eco-Saver Mode',
+      name: lang === 'bn' ? 'সঞ্চয় মোড' : 'Saver Mode',
       tagline: lang === 'bn' ? 'কঠোর সঞ্চয় ও নিয়ন্ত্রিত ব্যয়' : 'Disciplined savings & maximum wealth accumulation',
       badgeColor: '#207208',
       badgeBg: 'rgba(94, 210, 28, 0.16)',
@@ -59,22 +59,22 @@ export default function FinancialModeCard() {
       borderColor: 'rgba(94, 210, 28, 0.35)',
     },
     cruise: {
-      name: lang === 'bn' ? 'ব্যালান্সড ক্রুজ মোড' : 'Daily Cruise Mode',
-      tagline: lang === 'bn' ? 'ভারসাম্যপূর্ণ জীবন ও নিয়মিত বাজেট' : 'Balanced lifestyle & predictable monthly budget pace',
+      name: lang === 'bn' ? 'ভারসাম্য মোড' : 'Balanced Mode',
+      tagline: lang === 'bn' ? 'ভারসাম্যপূর্ণ জীবন ও নিয়ন্ত্রিত বাজেট' : 'Balanced lifestyle & predictable monthly budget pace',
       badgeColor: '#2563EB',
       badgeBg: 'rgba(59, 130, 246, 0.14)',
-      icon: Compass,
+      icon: Scale,
       metricLabel: lang === 'bn' ? 'দৈনিক বাজেট গতি' : 'Daily Budget Pace',
       metricSub: lang === 'bn' ? 'স্বাভাবিক খরচের ভারসাম্য' : 'Optimal steady pacing',
       accentGradient: 'linear-gradient(135deg, rgba(59, 130, 246, 0.14) 0%, rgba(99, 102, 241, 0.05) 100%)',
       borderColor: 'rgba(59, 130, 246, 0.3)',
     },
     racing: {
-      name: lang === 'bn' ? 'রেসিং বার্ন মোড' : 'Racing Expansion Mode',
-      tagline: lang === 'bn' ? 'উচ্চগতির বিনিয়োগ ও উন্মুক্ত ব্যয়' : 'Aggressive capital expansion & high burn velocity',
+      name: lang === 'bn' ? 'গ্রোথ মোড' : 'Growth Mode',
+      tagline: lang === 'bn' ? 'ভবিষ্যতের মূলধন বিনিয়োগ ও সম্প্রসারণ' : 'Aggressive growth, capital expansion & investment',
       badgeColor: '#D97706',
       badgeBg: 'rgba(245, 158, 11, 0.18)',
-      icon: Flame,
+      icon: Rocket,
       metricLabel: lang === 'bn' ? 'বাকি সম্প্রসারণ সক্ষমতা' : 'Expansion Capacity Remaining',
       metricSub: lang === 'bn' ? 'উচ্চগতির মূলধন বিনিয়োগ সক্রিয়' : 'Maximum capital velocity active',
       accentGradient: 'linear-gradient(135deg, rgba(245, 158, 11, 0.18) 0%, rgba(239, 68, 68, 0.06) 100%)',
@@ -90,7 +90,7 @@ export default function FinancialModeCard() {
       className="card financial-mode-card animate-fade-in-up"
       data-tour="financial-mode"
       style={{
-        marginBottom: 'var(--space-6)',
+        marginBottom: 10,
         border: `1.5px solid ${activeConfig.borderColor}`,
         background: `var(--glass-bg-card)`,
         position: 'relative',
@@ -116,28 +116,28 @@ export default function FinancialModeCard() {
             type="button"
             className={`mode-pill-btn eco ${financialMode === 'eco' ? 'active' : ''}`}
             onClick={() => setFinancialMode('eco')}
-            title="Switch to Eco-Saver Mode"
+            title="Switch to Saver Mode"
           >
             <Leaf size={13} />
-            <span>{lang === 'bn' ? 'ইকো' : 'Eco'}</span>
+            <span>{lang === 'bn' ? 'সঞ্চয়' : 'Saver'}</span>
           </button>
           <button
             type="button"
             className={`mode-pill-btn cruise ${financialMode === 'cruise' ? 'active' : ''}`}
             onClick={() => setFinancialMode('cruise')}
-            title="Switch to Daily Cruise Mode"
+            title="Switch to Balanced Mode"
           >
-            <Compass size={13} />
-            <span>{lang === 'bn' ? 'ক্রুজ' : 'Cruise'}</span>
+            <Scale size={13} />
+            <span>{lang === 'bn' ? 'ভারসাম্য' : 'Balanced'}</span>
           </button>
           <button
             type="button"
             className={`mode-pill-btn racing ${financialMode === 'racing' ? 'active' : ''}`}
             onClick={() => setFinancialMode('racing')}
-            title="Switch to Racing Expansion Mode"
+            title="Switch to Growth Mode"
           >
-            <Flame size={13} />
-            <span>{lang === 'bn' ? 'রেসিং' : 'Racing'}</span>
+            <Rocket size={13} />
+            <span>{lang === 'bn' ? 'গ্রোথ' : 'Growth'}</span>
           </button>
         </div>
       </div>
@@ -268,16 +268,16 @@ export default function FinancialModeCard() {
             <span>
               {financialMode === 'eco' &&
                 (lang === 'bn'
-                  ? `ইকো মোডে সঞ্চয় লক্ষ্য ${savingRate}% বজায় রাখলে চলতি মাসে ${formatCurrency(targetSavingsAmount)} সঞ্চয় নিশ্চিত হবে।`
-                  : `In Eco Mode, maintaining a ${savingRate}% target locks ${formatCurrency(targetSavingsAmount)} into wealth generation.`)}
+                  ? `সঞ্চয় মোডে সঞ্চয় লক্ষ্য ${savingRate}% বজায় রাখলে চলতি মাসে ${formatCurrency(targetSavingsAmount)} সঞ্চয় নিশ্চিত হবে।`
+                  : `In Saver Mode, maintaining a ${savingRate}% target locks ${formatCurrency(targetSavingsAmount)} into wealth generation.`)}
               {financialMode === 'cruise' &&
                 (lang === 'bn'
-                  ? `ক্রুজ মোডে আপনি প্রতিদিন প্রায় ${formatCurrency(dailySafeToSpend)} খরচের আরামদায়ক গতি উপভোগ করতে পারেন।`
-                  : `In Cruise Mode, your safe daily burn rate of ${formatCurrency(dailySafeToSpend)} gives a relaxed balance.`)}
+                  ? `ভারসাম্য মোডে আপনি প্রতিদিন প্রায় ${formatCurrency(dailySafeToSpend)} খরচের সুষম গতি বজায় রাখতে পারেন।`
+                  : `In Balanced Mode, your safe daily burn rate of ${formatCurrency(dailySafeToSpend)} gives a relaxed balance.`)}
               {financialMode === 'racing' &&
                 (lang === 'bn'
-                  ? `রেসিং মোডে ৯৫% মূলধন সম্প্রসারণের জন্য উন্মুক্ত। ব্যবসা ও প্রবৃদ্ধির সুযোগে টাকা ব্যবহার করুন।`
-                  : `In Racing Mode, 95% of income is allocated for active capital deployment and rapid business growth.`)}
+                  ? `গ্রোথ মোডে মূলধন বিনিয়োগ ও সম্প্রসারণের সুযোগ সর্বোচ্চ করা হয়েছে। ব্যবসা ও নতুন আয়ের সুযোগে টাকা ব্যবহার করুন।`
+                  : `In Growth Mode, income is prioritized for active capital deployment, business investment, and expansion.`)}
             </span>
           </div>
         </div>

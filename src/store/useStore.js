@@ -351,7 +351,7 @@ const useStore = create((set, get) => ({
   // ---- Cloud Sync & Auth State (Always Online & Synced) ----
   user: null,
   session: null,
-  isAuthLoading: true,
+  isAuthLoading: false,
   syncStatus: 'synced',
   lastSyncedAt: new Date().toISOString(),
   authModalOpen: false,

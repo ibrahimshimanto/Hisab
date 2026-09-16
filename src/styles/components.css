@@ -2226,49 +2226,145 @@ body.modal-open .floating-capsule-nav {
   }
 
   .hero-card {
-    padding: var(--space-5);
+    padding: 12px 14px;
     border-radius: var(--radius-xl);
+    margin-bottom: 10px !important;
+  }
+
+  .hero-card-header {
+    margin-bottom: 6px;
+  }
+
+  .hero-card-chip {
+    padding: 3px 8px;
+    font-size: 10px;
+    gap: 5px;
+  }
+
+  .hero-status-tag {
+    font-size: 10px;
+    padding: 2px 6px;
   }
 
   .hero-card-balance {
-    font-size: clamp(1.85rem, 7.5vw, 2.75rem);
-    margin-bottom: var(--space-3);
+    font-size: clamp(1.6rem, 6vw, 2.1rem);
+    margin-bottom: 3px;
+    line-height: 1.15;
   }
 
   .hero-balance-row {
     flex-direction: column;
     align-items: flex-start;
-    gap: var(--space-3);
+    gap: 6px;
+    margin-bottom: 6px;
   }
 
+  .hero-balance-info {
+    width: 100%;
+  }
+
+  .hero-balance-label-wrap {
+    margin-bottom: 2px;
+  }
+
+  .hero-balance-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+  }
+
+  .hero-meta-pill {
+    padding: 2px 6px;
+    font-size: 10px;
+    gap: 4px;
+  }
+
+  /* Compact single-row health widget on mobile */
   .hero-health-widget {
     width: 100%;
-    margin-top: var(--space-2);
+    min-height: unset;
+    height: auto;
+    padding: 6px 10px;
+    border-radius: 10px;
+    margin-top: 2px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
   }
 
+  .hero-health-widget .hero-health-header {
+    margin-bottom: 0;
+  }
+
+  .hero-health-widget .hero-health-metric-row {
+    margin: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+  }
+
+  .hero-health-widget .hero-runway-val {
+    font-size: 13px;
+  }
+
+  .hero-health-widget .hero-runway-desc {
+    font-size: 9.5px;
+  }
+
+  .hero-health-widget .hero-health-footer {
+    padding-top: 0;
+    margin-top: 0;
+    border-top: none;
+  }
+
+  /* 4 actions in a single horizontal row for compact mobile cockpit */
   .hero-actions-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: var(--space-3);
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-top: 6px;
   }
 
   .hero-action-card {
-    padding: 10px 12px;
-    gap: 10px;
-    border-radius: 14px;
+    padding: 6px 2px;
+    gap: 3px;
+    border-radius: 10px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-height: 48px;
   }
 
   .hero-action-icon-circle {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    margin-bottom: 2px;
+  }
+
+  .hero-action-icon-circle svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .hero-action-text {
+    align-items: center;
+    text-align: center;
   }
 
   .hero-action-name {
-    font-size: 12px;
+    font-size: 10.5px;
+    font-weight: var(--weight-semibold);
+    line-height: 1.1;
+    white-space: nowrap;
   }
 
   .hero-action-hint {
-    font-size: 10px;
+    display: none;
   }
 
   .hero-action-btn {
@@ -2366,42 +2462,42 @@ body.modal-open .floating-capsule-nav {
 /* Ultra-Small Mobile Phones (<= 375px: iPhone SE, compact Androids) */
 @media (max-width: 375px) {
   .hero-card {
-    padding: var(--space-4);
+    padding: 10px 12px;
   }
 
   .hero-card-balance {
-    font-size: clamp(1.6rem, 6.5vw, 2.1rem);
+    font-size: clamp(1.45rem, 6vw, 1.85rem);
   }
 
   .hero-actions-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: var(--space-2);
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
   }
 
   .hero-action-card {
-    padding: 8px 10px;
-    gap: 8px;
+    padding: 5px 2px;
+    gap: 2px;
+    border-radius: 8px;
+    min-height: 44px;
   }
 
   .hero-action-icon-circle {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+  }
+
+  .hero-action-icon-circle svg {
+    width: 12px;
+    height: 12px;
   }
 
   .hero-action-name {
-    font-size: 11px;
+    font-size: 9.5px;
   }
 
   .hero-action-hint {
-    font-size: 9px;
-  }
-
-  .hero-action-btn {
-    padding: var(--space-2);
-    font-size: 11px;
-    flex-direction: row;
-    justify-content: center;
+    display: none;
   }
 
   .modal-header,
@@ -2426,6 +2522,20 @@ body.modal-open .floating-capsule-nav {
 
   .capsule-nav-item {
     height: 40px;
+  }
+}
+
+/* Dynamic hide non-essential elements on short mobile viewports so cockpit fits 100% without scroll */
+@media (max-height: 720px) and (max-width: 768px) {
+  .hero-card-chip {
+    display: none;
+  }
+  .hero-balance-meta .hero-meta-pill:not(:first-child) {
+    display: none;
+  }
+  .hero-card {
+    padding: 10px 12px;
+    margin-bottom: 10px !important;
   }
 }
 
@@ -3656,7 +3766,7 @@ body.modal-open .floating-capsule-nav {
 .settings-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--space-6);
+  gap: 10px;
   width: 100%;
   align-items: stretch;
 }
@@ -3664,7 +3774,7 @@ body.modal-open .floating-capsule-nav {
 .settings-col {
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
+  gap: 10px;
   min-width: 0;
   height: 100%;
 }
@@ -3713,10 +3823,10 @@ body.modal-open .floating-capsule-nav {
 @media (max-width: 960px) {
   .settings-grid {
     grid-template-columns: 1fr;
-    gap: var(--space-4);
+    gap: 10px;
   }
   .settings-col {
-    gap: var(--space-4);
+    gap: 10px;
     height: auto;
   }
 }

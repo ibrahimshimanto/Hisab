@@ -2,10 +2,18 @@ import { useState } from 'react';
 import {
   Plus, Wallet, Building2, Smartphone, Edit2, Trash2,
   ArrowRightLeft, History, SlidersHorizontal, Sparkles, CheckCircle2,
+  ChevronDown,
 } from 'lucide-react';
 import { useTranslation } from '../i18n/index.jsx';
 import useStore from '../store/useStore.js';
 import Modal from '../components/ui/Modal.jsx';
+import {
+  MFS_PROVIDERS,
+  BANK_PROVIDERS,
+  WALLET_PROVIDERS,
+  ProviderLogo,
+  findProvider,
+} from '../lib/accountProviders.jsx';
 
 const typeIcons = {
   mfs: Smartphone,
@@ -39,6 +47,7 @@ export default function Accounts() {
 
   // Form state
   const [formType, setFormType] = useState('mfs');
+  const [formProviderId, setFormProviderId] = useState('bkash');
   const [formName, setFormName] = useState('');
   const [formBalance, setFormBalance] = useState('');
   const [formIncomeSource, setFormIncomeSource] = useState('salary');
@@ -65,7 +74,8 @@ export default function Accounts() {
 
   const resetForm = () => {
     setFormType('mfs');
-    setFormName('');
+    setFormProviderId('bkash');
+    setFormName(lang === 'bn' ? 'বিকাশ' : 'bKash');
     setFormBalance('');
     setFormIncomeSource('salary');
     setEditingAccount(null);
@@ -79,6 +89,8 @@ export default function Accounts() {
   const openEdit = (account) => {
     setEditingAccount(account);
     setFormType(account.type);
+    const prov = findProvider(account.providerId || account.name, account.type);
+    setFormProviderId(prov ? prov.id : (account.type === 'mfs' ? 'bkash' : account.type === 'bank' ? 'brac' : 'cash_wallet'));
     setFormName(account.name);
     setFormBalance(String(account.balance));
     setShowAddModal(true);
@@ -108,6 +120,7 @@ export default function Accounts() {
     if (!formName.trim() || !formBalance) return;
     const data = {
       type: formType,
+      providerId: formProviderId,
       name: formName.trim(),
       balance: parseFloat(formBalance) || 0,
       incomeSource: formIncomeSource || 'salary',
@@ -207,7 +220,7 @@ export default function Accounts() {
         <div
           className="hero-card"
           style={{
-            marginBottom: 'var(--space-6)',
+            marginBottom: 10,
             padding: 'var(--space-6)',
           }}
         >
@@ -238,11 +251,8 @@ export default function Accounts() {
 
       {/* Account List */}
       {accounts.length > 0 ? (
-        <div className="stagger-children" data-tour="accounts-list" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+        <div className="stagger-children" data-tour="accounts-list" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {accounts.map((acc) => {
-            const Icon = typeIcons[acc.type] || Wallet;
-            const colors = typeColors[acc.type] || typeColors.wallet;
-
             return (
               <div
                 key={acc.id}
@@ -254,11 +264,18 @@ export default function Accounts() {
                     <div
                       className="account-item-icon-wrap"
                       style={{
-                        background: colors.bg,
-                        color: colors.color,
+                        background: 'var(--color-surface)',
+                        border: '1px solid var(--color-border)',
+                        width: 44,
+                        height: 44,
+                        borderRadius: 'var(--radius-md)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
                       }}
                     >
-                      <Icon size={22} />
+                      <ProviderLogo providerId={acc.providerId} name={acc.name} type={acc.type} size={24} />
                     </div>
                     <div style={{ minWidth: 0 }}>
                       <div className="account-item-name">
@@ -345,11 +362,80 @@ export default function Accounts() {
               <button
                 key={type}
                 className={`toggle-option ${formType === type ? 'active' : ''}`}
-                onClick={() => setFormType(type)}
+                onClick={() => {
+                  setFormType(type);
+                  const pId = type === 'mfs' ? 'bkash' : type === 'bank' ? 'brac' : 'cash_wallet';
+                  setFormProviderId(pId);
+                  const list = type === 'mfs' ? MFS_PROVIDERS : type === 'bank' ? BANK_PROVIDERS : WALLET_PROVIDERS;
+                  const p = list.find((item) => item.id === pId);
+                  if (p && !editingAccount) {
+                    setFormName(lang === 'bn' ? (p.nameBn || p.name) : p.name);
+                  }
+                }}
               >
                 {t(`accounts.${type}`)}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Provider Dropdown with Brand Logo */}
+        <div className="form-group">
+          <label className="form-label">
+            {formType === 'mfs'
+              ? (lang === 'bn' ? 'প্রোভাইডার নির্বাচন' : 'MFS Provider')
+              : formType === 'bank'
+              ? (lang === 'bn' ? 'ব্যাংক নির্বাচন' : 'Bank')
+              : (lang === 'bn' ? 'ওয়ালেট ধরন' : 'Wallet Type')}
+          </label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 40,
+              height: 40,
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <ProviderLogo providerId={formProviderId} type={formType} size={22} />
+            </div>
+
+            <div style={{ position: 'relative', flex: 1 }}>
+              <select
+                className="form-input form-select"
+                value={formProviderId}
+                onChange={(e) => {
+                  const pId = e.target.value;
+                  setFormProviderId(pId);
+                  const list = formType === 'mfs' ? MFS_PROVIDERS : formType === 'bank' ? BANK_PROVIDERS : WALLET_PROVIDERS;
+                  const p = list.find((item) => item.id === pId);
+                  if (p && !editingAccount) {
+                    setFormName(lang === 'bn' ? (p.nameBn || p.name) : p.name);
+                  }
+                }}
+                style={{ height: 40, paddingRight: 32 }}
+              >
+                {(formType === 'mfs' ? MFS_PROVIDERS : formType === 'bank' ? BANK_PROVIDERS : WALLET_PROVIDERS).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {lang === 'bn' ? (p.nameBn || p.name) : p.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                size={15}
+                style={{
+                  position: 'absolute',
+                  right: 12,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  pointerEvents: 'none',
+                  color: 'var(--color-text-tertiary)',
+                }}
+              />
+            </div>
           </div>
         </div>
 
@@ -362,35 +448,6 @@ export default function Accounts() {
             onChange={(e) => setFormName(e.target.value)}
             placeholder={getPlaceholder()}
           />
-          {/* Preset Suggestions */}
-          {!editingAccount && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
-              {(formType === 'mfs'
-                ? ['bKash', 'Nagad', 'Rocket', 'Upay']
-                : formType === 'bank'
-                ? ['BRAC Bank', 'City Bank', 'DBBL', 'Standard Chartered', 'UCB', 'Eastern Bank']
-                : ['Cash Wallet', 'Petty Cash']
-              ).map((name) => (
-                <button
-                  key={name}
-                  type="button"
-                  onClick={() => setFormName(name)}
-                  style={{
-                    padding: '3px 8px',
-                    borderRadius: 'var(--radius-full)',
-                    fontSize: '11px',
-                    background: formName.trim().toLowerCase() === name.toLowerCase() ? 'rgba(94, 210, 28, 0.2)' : 'var(--color-bg-elevated)',
-                    border: `1px solid ${formName.trim().toLowerCase() === name.toLowerCase() ? 'var(--color-primary)' : 'var(--color-border)'}`,
-                    color: formName.trim().toLowerCase() === name.toLowerCase() ? 'var(--color-primary-dark)' : 'var(--color-text-secondary)',
-                    cursor: 'pointer',
-                    fontWeight: 'var(--weight-medium)',
-                  }}
-                >
-                  {name}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Existing Account Auto-update Notice */}
