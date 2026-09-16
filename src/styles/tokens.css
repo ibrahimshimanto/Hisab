@@ -164,6 +164,8 @@
   --glass-shadow: none;
   --glass-shadow-hover: none;
   --glass-shadow-elevated: none;
+  --card-inner-border: rgba(17, 20, 17, 0.09);
+  --card-inner-border-subtle: rgba(17, 20, 17, 0.05);
   --glass-blur: blur(20px);
   --glass-blur-heavy: blur(28px);
   --glass-saturate: saturate(190%);
@@ -258,4 +260,6 @@
   --glass-shadow: none;
   --glass-shadow-hover: none;
   --glass-shadow-elevated: none;
+  --card-inner-border: rgba(255, 255, 255, 0.12);
+  --card-inner-border-subtle: rgba(255, 255, 255, 0.07);
 }

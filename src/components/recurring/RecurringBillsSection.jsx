@@ -257,7 +257,7 @@ export default function RecurringBillsSection({ title, subtitle, showCardWrapper
         padding: '14px 16px',
         borderRadius: 'var(--radius-xl)',
         background: 'var(--color-surface-secondary)',
-        border: 'none',
+        border: '1px solid var(--card-inner-border, rgba(17, 20, 17, 0.08))',
         boxShadow: 'none',
         marginBottom: 'var(--space-4)',
         display: 'flex',
@@ -277,7 +277,7 @@ export default function RecurringBillsSection({ title, subtitle, showCardWrapper
             background: 'var(--color-surface)',
             padding: '2px 8px',
             borderRadius: 'var(--radius-full)',
-            border: 'none',
+            border: '1px solid var(--card-inner-border, rgba(17, 20, 17, 0.08))',
           }}>
             {progressPct}% {lang === 'bn' ? 'সম্পন্ন' : 'Complete'}
           </div>
@@ -450,7 +450,7 @@ export default function RecurringBillsSection({ title, subtitle, showCardWrapper
                   padding: '14px 16px',
                   borderRadius: 'var(--radius-xl)',
                   background: 'var(--color-surface)',
-                  border: 'none',
+                  border: '1px solid var(--card-inner-border, rgba(17, 20, 17, 0.09))',
                   boxShadow: 'none',
                   display: 'flex',
                   flexDirection: 'column',
