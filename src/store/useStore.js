@@ -453,8 +453,8 @@ const useStore = create((set, get) => ({
         savingsGoals: cloudData.savingsGoals?.length > 0 ? cloudData.savingsGoals : state.savingsGoals,
         recurringBills: cloudData.recurringBills?.length > 0 ? cloudData.recurringBills : state.recurringBills,
         onboardingComplete: cloudData.onboardingComplete !== undefined
-          ? cloudData.onboardingComplete
-          : (cloudData.accounts?.length > 0 ? true : state.onboardingComplete),
+          ? Boolean(cloudData.onboardingComplete)
+          : state.onboardingComplete,
       };
       setTimeout(() => saveToStorage(get()), 0);
       return newState;
