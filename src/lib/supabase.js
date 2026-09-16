@@ -3,8 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 const STORAGE_URL_KEY = 'hisab_supabase_url';
 const STORAGE_ANON_KEY = 'hisab_supabase_anon_key';
 
-const DEFAULT_SUPABASE_URL = 'https://wdxcfikuufscmweaqxyb.supabase.co';
-const DEFAULT_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndkeGNmaWt1dWZzY213ZWFxeHliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0ODc0NDksImV4cCI6MjEwNTA2MzQ0OX0.j2e49fbNzhfexiELgyVA6AtvhKONesVSZJhGXNvAJfs';
+export const DEFAULT_SUPABASE_URL = 'https://wdxcfikuufscmweaqxyb.supabase.co';
+export const DEFAULT_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndkeGNmaWt1dWZzY213ZWFxeHliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0ODc0NDksImV4cCI6MjEwNTA2MzQ0OX0.j2e49fbNzhfexiELgyVA6AtvhKONesVSZJhGXNvAJfs';
+export const SUPABASE_URL = DEFAULT_SUPABASE_URL;
+export const SUPABASE_ANON_KEY = DEFAULT_ANON_KEY;
 
 export function getSupabaseConfig() {
   const envUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) || DEFAULT_SUPABASE_URL;

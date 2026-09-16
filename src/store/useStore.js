@@ -369,13 +369,90 @@ const useStore = create((set, get) => ({
     }
 
     try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) console.warn('getSession warning:', error);
+      let activeSession = null;
 
-      const currentUser = session?.user || null;
+      // 1. Handle Magic Link / OAuth redirects with ?code= (PKCE Flow)
+      if (typeof window !== 'undefined') {
+        const url = new URL(window.location.href);
+        const code = url.searchParams.get('code');
+        if (code) {
+          try {
+            const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+            if (!error && data?.session) {
+              activeSession = data.session;
+              url.searchParams.delete('code');
+              window.history.replaceState({}, document.title, url.toString());
+            }
+          } catch (codeErr) {
+            console.warn('PKCE exchange error:', codeErr);
+          }
+        }
+
+        // 2. Handle token_hash verification (Direct Email Confirm link)
+        const tokenHash = url.searchParams.get('token_hash');
+        const verifyType = url.searchParams.get('type') || 'email';
+        if (!activeSession && tokenHash) {
+          try {
+            const { data, error } = await supabase.auth.verifyOtp({
+              token_hash: tokenHash,
+              type: verifyType,
+            });
+            if (!error && data?.session) {
+              activeSession = data.session;
+              url.searchParams.delete('token_hash');
+              url.searchParams.delete('type');
+              window.history.replaceState({}, document.title, url.toString());
+            }
+          } catch (tokenErr) {
+            console.warn('Token hash verification error:', tokenErr);
+          }
+        }
+
+        // 3. Handle Magic Link / OAuth redirects with #access_token= (Implicit Flow)
+        if (!activeSession && window.location.hash.includes('access_token')) {
+          try {
+            const hashParams = new URLSearchParams(window.location.hash.substring(1));
+            const accessToken = hashParams.get('access_token');
+            const refreshToken = hashParams.get('refresh_token');
+            if (accessToken && refreshToken) {
+              const { data, error } = await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken,
+              });
+              if (!error && data?.session) {
+                activeSession = data.session;
+                window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+              }
+            }
+          } catch (hashErr) {
+            console.warn('Hash session error:', hashErr);
+          }
+        }
+      }
+
+      // 4. If no URL token, fetch existing session from Supabase
+      if (!activeSession) {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) console.warn('getSession warning:', error);
+        activeSession = session;
+      }
+
+      let currentUser = activeSession?.user || null;
+      if (!currentUser && typeof window !== 'undefined') {
+        try {
+          const fallbackRaw = localStorage.getItem('hisab_active_user');
+          if (fallbackRaw) {
+            currentUser = JSON.parse(fallbackRaw);
+            activeSession = { user: currentUser };
+          }
+        } catch {
+          // ignore
+        }
+      }
+
       set({
         user: currentUser,
-        session: session || null,
+        session: activeSession || null,
         syncStatus: 'syncing',
         isAuthLoading: false,
       });
@@ -405,7 +482,7 @@ const useStore = create((set, get) => ({
       // Handle user OAuth sign-ins / sign-outs
       supabase.auth.onAuthStateChange(async (event, currentSession) => {
         const authUser = currentSession?.user || null;
-        if (event === 'SIGNED_IN' && authUser) {
+        if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && authUser) {
           set({ user: authUser, session: currentSession, syncStatus: 'syncing' });
           const userCloudData = await fetchCloudData(authUser.id);
           if (
@@ -492,6 +569,11 @@ const useStore = create((set, get) => ({
       } catch (e) {
         console.warn('Sign out warning:', e);
       }
+    }
+    try {
+      localStorage.removeItem('hisab_active_user');
+    } catch {
+      // ignore
     }
     set({ user: null, session: null, syncStatus: 'synced' });
   },

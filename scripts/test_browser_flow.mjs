@@ -43,8 +43,11 @@ async function runBrowserTest() {
     console.log('📸 Capturing Screen 3: Step 1 (Profile & Avatar & Name)...');
     await page.screenshot({ path: path.join(ARTIFACT_DIR, 'screen3_step1_empty.png') });
 
-    // Test mandatory validation: click Next with empty name
-    console.log('⚠️ Testing empty name validation (clicking Next without name)...');
+    const nameInput = page.locator('input[placeholder*="Ibrahim"], input[placeholder*="ইব্রাহিম"]');
+
+    // Test mandatory validation: clear name and click Next
+    console.log('⚠️ Testing empty name validation (clearing name and clicking Next)...');
+    await nameInput.fill('');
     await nextBtn.click();
     await page.waitForTimeout(400);
 
@@ -52,7 +55,6 @@ async function runBrowserTest() {
     await page.screenshot({ path: path.join(ARTIFACT_DIR, 'screen4_step1_validation_error.png') });
 
     // Now fill the name and select an avatar
-    const nameInput = page.locator('input[placeholder*="Ibrahim"], input[placeholder*="ইব্রাহিম"]');
     console.log('✍️ Entering name "Ibrahim Khalil"...');
     await nameInput.fill('Ibrahim Khalil');
     await page.waitForTimeout(300);
