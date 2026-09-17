@@ -1438,12 +1438,13 @@ const useStore = create((set, get) => ({
         createdAt: new Date().toISOString(),
       };
 
-      // 3. Add to paidMonths for bill
+      // 3. Add to paidMonths for bill & clear any forced unpaidMonths
       const currentPaid = bill.paidMonths || [];
       const paidMonths = currentPaid.includes(monthKey) ? currentPaid : [...currentPaid, monthKey];
+      const unpaidMonths = (bill.unpaidMonths || []).filter((m) => m !== monthKey);
 
       const updatedBills = (state.recurringBills || []).map((b) =>
-        b.id === id ? { ...b, paidMonths } : b
+        b.id === id ? { ...b, paidMonths, unpaidMonths } : b
       );
 
       const newState = {
@@ -1468,18 +1469,69 @@ const useStore = create((set, get) => ({
       const updatedBills = (state.recurringBills || []).map((b) => {
         if (b.id !== id) return b;
         const currentPaidMonths = b.paidMonths || [];
-        const isPaid = currentPaidMonths.includes(nowKey);
-        return {
-          ...b,
-          paidMonths: isPaid
-            ? currentPaidMonths.filter((m) => m !== nowKey)
-            : [...currentPaidMonths, nowKey],
-        };
+        const currentUnpaidMonths = b.unpaidMonths || [];
+        const isPaid = currentPaidMonths.includes(nowKey) && !currentUnpaidMonths.includes(nowKey);
+
+        if (isPaid) {
+          // Mark as UNPAID: remove from paid, add to unpaid
+          return {
+            ...b,
+            paidMonths: currentPaidMonths.filter((m) => m !== nowKey),
+            unpaidMonths: currentUnpaidMonths.includes(nowKey) ? currentUnpaidMonths : [...currentUnpaidMonths, nowKey],
+          };
+        } else {
+          // Mark as PAID: remove from unpaid, add to paid
+          return {
+            ...b,
+            paidMonths: currentPaidMonths.includes(nowKey) ? currentPaidMonths : [...currentPaidMonths, nowKey],
+            unpaidMonths: currentUnpaidMonths.filter((m) => m !== nowKey),
+          };
+        }
       });
 
       const newState = {
         recurringBills: updatedBills,
       };
+      setTimeout(() => saveToStorage(get()), 0);
+      backgroundSync('recurringBill', updatedBills.find((b) => b.id === id));
+      return newState;
+    });
+  },
+
+  markRecurringBillUnpaid: (id, targetMonthKey) => {
+    set((state) => {
+      const nowKey = targetMonthKey || new Date().toISOString().slice(0, 7);
+      const updatedBills = (state.recurringBills || []).map((b) => {
+        if (b.id !== id) return b;
+        const currentPaid = b.paidMonths || [];
+        const currentUnpaid = b.unpaidMonths || [];
+        return {
+          ...b,
+          paidMonths: currentPaid.filter((m) => m !== nowKey),
+          unpaidMonths: currentUnpaid.includes(nowKey) ? currentUnpaid : [...currentUnpaid, nowKey],
+        };
+      });
+      const newState = { recurringBills: updatedBills };
+      setTimeout(() => saveToStorage(get()), 0);
+      backgroundSync('recurringBill', updatedBills.find((b) => b.id === id));
+      return newState;
+    });
+  },
+
+  markRecurringBillPaid: (id, targetMonthKey) => {
+    set((state) => {
+      const nowKey = targetMonthKey || new Date().toISOString().slice(0, 7);
+      const updatedBills = (state.recurringBills || []).map((b) => {
+        if (b.id !== id) return b;
+        const currentPaid = b.paidMonths || [];
+        const currentUnpaid = b.unpaidMonths || [];
+        return {
+          ...b,
+          paidMonths: currentPaid.includes(nowKey) ? currentPaid : [...currentPaid, nowKey],
+          unpaidMonths: currentUnpaid.filter((m) => m !== nowKey),
+        };
+      });
+      const newState = { recurringBills: updatedBills };
       setTimeout(() => saveToStorage(get()), 0);
       backgroundSync('recurringBill', updatedBills.find((b) => b.id === id));
       return newState;

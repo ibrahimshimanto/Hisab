@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import {
   Calendar, CheckCircle2, AlertCircle, Clock, Plus,
   Edit2, Trash2, Check, ArrowRight, ShieldAlert,
-  Wallet, Sparkles, RefreshCw
+  Wallet, Sparkles, RefreshCw, RotateCcw
 } from 'lucide-react';
 import { useTranslation } from '../../i18n/index.jsx';
 import useStore from '../../store/useStore.js';
@@ -57,10 +57,13 @@ export default function RecurringBillsSection({ title, subtitle, showCardWrapper
   // Compute status for each bill
   const billsWithStatus = useMemo(() => {
     return recurringBills.map((bill) => {
-      // 1. Check paidMonths
+      // 1. Check paidMonths (manually marked)
       const inPaidMonths = Array.isArray(bill.paidMonths) && bill.paidMonths.includes(currentMonthKey);
 
-      // 2. Check matching transactions in current month
+      // 2. Check if forcefully marked unpaid (overrides transaction match)
+      const inUnpaidMonths = Array.isArray(bill.unpaidMonths) && bill.unpaidMonths.includes(currentMonthKey);
+
+      // 3. Check matching transactions in current month
       const matchingTxn = transactions.find((txn) => {
         if (txn.type !== 'expense' || !txn.date || !txn.date.startsWith(currentMonthKey)) return false;
         if (txn.recurringBillId === bill.id) return true;
@@ -71,7 +74,10 @@ export default function RecurringBillsSection({ title, subtitle, showCardWrapper
         return false;
       });
 
-      const isPaid = inPaidMonths || Boolean(matchingTxn);
+      // If user has force-unpaid this month, it overrides everything
+      const isPaidByTxn = Boolean(matchingTxn) && !inUnpaidMonths;
+      const isPaid = inUnpaidMonths ? false : (inPaidMonths || isPaidByTxn);
+      const paidViaTxn = isPaidByTxn && !inPaidMonths;
 
       // Due calculation
       const dueDay = Number(bill.dueDay) || 1;
@@ -93,6 +99,7 @@ export default function RecurringBillsSection({ title, subtitle, showCardWrapper
       return {
         ...bill,
         isPaid,
+        paidViaTxn,
         status,
         diffDays,
       };
@@ -196,7 +203,29 @@ export default function RecurringBillsSection({ title, subtitle, showCardWrapper
   };
 
   const handleToggleUnpaid = (billId) => {
-    toggleRecurringBillPaid(billId, currentMonthKey);
+    const bill = recurringBills.find((b) => b.id === billId);
+    if (!bill) return;
+    const currentPaid = bill.paidMonths || [];
+    const currentUnpaid = bill.unpaidMonths || [];
+    updateRecurringBill(billId, {
+      paidMonths: currentPaid.filter((m) => m !== currentMonthKey),
+      unpaidMonths: currentUnpaid.includes(currentMonthKey)
+        ? currentUnpaid
+        : [...currentUnpaid, currentMonthKey],
+    });
+  };
+
+  const handleQuickMarkPaid = (billId) => {
+    const bill = recurringBills.find((b) => b.id === billId);
+    if (!bill) return;
+    const currentPaid = bill.paidMonths || [];
+    const currentUnpaid = bill.unpaidMonths || [];
+    updateRecurringBill(billId, {
+      unpaidMonths: currentUnpaid.filter((m) => m !== currentMonthKey),
+      paidMonths: currentPaid.includes(currentMonthKey)
+        ? currentPaid
+        : [...currentPaid, currentMonthKey],
+    });
   };
 
   const content = (
@@ -447,11 +476,11 @@ export default function RecurringBillsSection({ title, subtitle, showCardWrapper
               <div
                 key={bill.id}
                 style={{
-                  padding: '14px 16px',
+                  padding: '16px 18px',
                   borderRadius: 'var(--radius-xl)',
                   background: 'var(--color-surface)',
-                  border: '1px solid var(--card-inner-border, rgba(17, 20, 17, 0.09))',
-                  boxShadow: 'none',
+                  border: '1.5px solid var(--card-inner-border, rgba(17, 20, 17, 0.12))',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
@@ -523,6 +552,12 @@ export default function RecurringBillsSection({ title, subtitle, showCardWrapper
                     <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>
                       {lang === 'bn' ? `প্রতি মাসের ${bill.dueDay} তারিখ` : `Due day: ${bill.dueDay}th`}
                     </div>
+                    {bill.paidViaTxn && (
+                      <div style={{ fontSize: '10.5px', color: 'var(--color-text-tertiary)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <CheckCircle2 size={11} color="var(--color-income)" />
+                        <span>{lang === 'bn' ? 'লেনদেনের সাথে মিলেছে' : 'Auto-matched with transaction'}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -537,16 +572,36 @@ export default function RecurringBillsSection({ title, subtitle, showCardWrapper
                       type="button"
                       className="btn btn-secondary btn-sm"
                       onClick={() => handleToggleUnpaid(bill.id)}
-                      style={{ width: '100%', height: 36, justifyContent: 'center', fontSize: '12px', borderRadius: 'var(--radius-lg)' }}
+                      style={{
+                        width: '100%',
+                        height: 36,
+                        justifyContent: 'center',
+                        fontSize: '12px',
+                        fontWeight: 'var(--weight-semibold)',
+                        borderRadius: 'var(--radius-lg)',
+                        border: '1px solid var(--card-inner-border, rgba(17, 20, 17, 0.14))',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                      }}
                     >
-                      <span>{lang === 'bn' ? 'অপরিশোধিত হিসেবে চিহ্নিত করুন' : 'Mark as Unpaid'}</span>
+                      <RotateCcw size={13} />
+                      <span>{lang === 'bn' ? 'অপরিশোধিত করুন' : 'Mark as Unpaid'}</span>
                     </button>
                   ) : (
                     <button
                       type="button"
                       className="btn btn-lime btn-sm"
                       onClick={() => openPayModal(bill)}
-                      style={{ width: '100%', height: 38, justifyContent: 'center', fontSize: '13px', fontWeight: 'var(--weight-bold)', gap: 6, borderRadius: 'var(--radius-lg)' }}
+                      style={{
+                        width: '100%',
+                        height: 38,
+                        justifyContent: 'center',
+                        fontSize: '13px',
+                        fontWeight: 'var(--weight-bold)',
+                        gap: 6,
+                        borderRadius: 'var(--radius-lg)',
+                      }}
                     >
                       <Check size={15} strokeWidth={2.5} />
                       <span>{lang === 'bn' ? 'পরিশোধ করুন' : 'Pay / Mark Paid'}</span>

@@ -1061,7 +1061,7 @@ export default function Dashboard() {
             </button>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {recentTransactions.map((txn) => {
               const cat = getCategoryInfo(txn.categoryId, txn.type);
               const acc = getAccountInfo(txn.accountId);
