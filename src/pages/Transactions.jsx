@@ -378,7 +378,7 @@ export default function Transactions() {
                 </div>
 
                 {/* Items in this date group */}
-                <div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {group.items.map((txn) => {
                     const cat = getCategoryInfo(txn.categoryId, txn.type);
                     const acc = accounts.find((a) => a.id === txn.accountId);
