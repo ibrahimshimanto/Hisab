@@ -84,6 +84,12 @@ Visit `http://localhost:5173` in your browser.
 
 ---
 
+## 🌐 Live Demo
+
+- **Production**: [https://hisab-psi-eight.vercel.app](https://hisab-psi-eight.vercel.app)
+
+---
+
 ## 📄 License
 
 MIT © [Ibrahim Shimanto](https://github.com/ibrahimshimanto)
