@@ -435,7 +435,7 @@ export default function Accounts() {
           </div>
         </div>
 
-        {/* Provider Logo Dropdown (Single data layer, logo-only with stroke outline) */}
+        {/* Provider Name Dropdown (Name-only with stroke outline) */}
         <div className="form-group" style={{ position: 'relative' }} ref={providerDropdownRef}>
           <label className="form-label">
             {formType === 'mfs'
@@ -445,48 +445,60 @@ export default function Accounts() {
               : (lang === 'bn' ? 'ওয়ালেট ধরন' : 'Wallet Type')}
           </label>
 
-          <button
-            type="button"
-            className="provider-dropdown-trigger"
-            onClick={() => setProviderDropdownOpen((prev) => !prev)}
-            aria-expanded={providerDropdownOpen}
-          >
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <ProviderLogo providerId={formProviderId} type={formType} size={36} />
-            </div>
-            <ChevronDown
-              size={18}
-              style={{
-                transform: providerDropdownOpen ? 'rotate(180deg)' : 'none',
-                transition: 'transform 0.2s ease',
-                color: 'var(--color-text-tertiary)',
-              }}
-            />
-          </button>
+          {(() => {
+            const providerList = formType === 'mfs' ? MFS_PROVIDERS : formType === 'bank' ? BANK_PROVIDERS : WALLET_PROVIDERS;
+            const currentProv = providerList.find((p) => p.id === formProviderId) || providerList[0];
+            const currentDisplayName = formName || (currentProv ? (lang === 'bn' ? (currentProv.nameBn || currentProv.name) : currentProv.name) : '');
 
-          {providerDropdownOpen && (
-            <div className="provider-dropdown-popover">
-              {(formType === 'mfs' ? MFS_PROVIDERS : formType === 'bank' ? BANK_PROVIDERS : WALLET_PROVIDERS).map((p) => {
-                const isSelected = formProviderId === p.id;
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    title={p.name}
-                    aria-label={p.name}
-                    className={`provider-dropdown-item ${isSelected ? 'selected' : ''}`}
-                    onClick={() => {
-                      setFormProviderId(p.id);
-                      setFormName(lang === 'bn' ? (p.nameBn || p.name) : p.name);
-                      setProviderDropdownOpen(false);
+            return (
+              <>
+                <button
+                  type="button"
+                  className="provider-name-dropdown-trigger"
+                  onClick={() => setProviderDropdownOpen((prev) => !prev)}
+                  aria-expanded={providerDropdownOpen}
+                >
+                  <span style={{ fontSize: '13.5px', fontWeight: 'var(--weight-semibold)', color: 'var(--color-text-primary)' }}>
+                    {currentDisplayName}
+                  </span>
+                  <ChevronDown
+                    size={17}
+                    style={{
+                      transform: providerDropdownOpen ? 'rotate(180deg)' : 'none',
+                      transition: 'transform 0.2s ease',
+                      color: 'var(--color-text-tertiary)',
                     }}
-                  >
-                    <ProviderLogo providerId={p.id} type={formType} size={36} />
-                  </button>
-                );
-              })}
-            </div>
-          )}
+                  />
+                </button>
+
+                {providerDropdownOpen && (
+                  <div className="provider-name-dropdown-popover">
+                    {providerList.map((p) => {
+                      const isSelected = formProviderId === p.id;
+                      const pName = lang === 'bn' ? (p.nameBn || p.name) : p.name;
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          className={`provider-name-option ${isSelected ? 'selected' : ''}`}
+                          onClick={() => {
+                            setFormProviderId(p.id);
+                            setFormName(pName);
+                            setProviderDropdownOpen(false);
+                          }}
+                        >
+                          <span>{pName}</span>
+                          {isSelected && (
+                            <CheckCircle2 size={16} style={{ color: '#5ED21C', flexShrink: 0 }} />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         {/* Existing Account Auto-update Notice */}
