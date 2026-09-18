@@ -151,33 +151,40 @@ export default function Sidebar() {
               name={userName}
               size={36}
             />
-            <div className="sidebar-profile-gear-pill" title="Settings">
-              <Settings size={10} />
-            </div>
+            {sidebarCollapsed && (
+              <div className="sidebar-profile-gear-pill" title="Settings">
+                <Settings size={10} />
+              </div>
+            )}
           </div>
           {!sidebarCollapsed && (
-            <div className="sidebar-footer-info" style={{ overflow: 'hidden', minWidth: 0, flex: 1 }}>
-              <div
+            <>
+              <div className="sidebar-footer-info" style={{ overflow: 'hidden', minWidth: 0, flex: 1 }}>
+                <div
+                  style={{
+                    fontSize: '13.5px',
+                    fontWeight: 'var(--weight-bold)',
+                    color: isSettingsActive ? '#5ED21C' : 'var(--color-text-primary)',
+                    whiteSpace: 'nowrap',
+                    textOverflow: 'ellipsis',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {userName}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: '2px' }}>
+                  {lang === 'bn' ? 'সেটিংস ও প্রোফাইল' : 'Settings & Profile'}
+                </div>
+              </div>
+              <Settings
+                size={16}
                 style={{
-                  fontSize: 'var(--text-xs)',
-                  fontWeight: 'var(--weight-bold)',
-                  color: isSettingsActive ? '#5ED21C' : 'var(--color-text-primary)',
-                  whiteSpace: 'nowrap',
-                  textOverflow: 'ellipsis',
-                  overflow: 'hidden',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 4,
+                  color: isSettingsActive ? '#5ED21C' : 'var(--color-text-tertiary)',
+                  flexShrink: 0,
+                  transition: 'color var(--transition-fast)'
                 }}
-              >
-                <span>{userName}</span>
-                <Settings size={12} style={{ color: isSettingsActive ? '#5ED21C' : 'var(--color-text-tertiary)', flexShrink: 0 }} />
-              </div>
-              <div style={{ fontSize: '10px', color: 'var(--color-text-tertiary)', marginTop: 1 }}>
-                <span>{lang === 'bn' ? 'সেটিংস ও প্রোফাইল' : 'Settings & Profile'}</span>
-              </div>
-            </div>
+              />
+            </>
           )}
         </button>
       </div>
