@@ -931,7 +931,7 @@ export default function Dashboard() {
             </div>
 
             {/* Strict 4 Filter Options: Last 7 Days, Past 30 Days, This Month, This Year */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+            <div className="chart-filter-chips-wrap">
               {[
                 { id: '7days', label: lang === 'bn' ? 'গত ৭ দিন' : 'Last 7 Days' },
                 { id: '30days', label: lang === 'bn' ? 'গত ৩০ দিন' : 'Past 30 Days' },
@@ -944,18 +944,7 @@ export default function Dashboard() {
                     key={opt.id}
                     type="button"
                     onClick={() => setBreakdownFilter(opt.id)}
-                    style={{
-                      padding: '3px 9px',
-                      borderRadius: 'var(--radius-full)',
-                      fontSize: '11px',
-                      fontWeight: 'var(--weight-semibold)',
-                      background: active ? 'var(--color-primary)' : 'var(--glass-bg-subtle)',
-                      color: active ? '#111411' : 'var(--color-text-secondary)',
-                      border: `1px solid ${active ? 'var(--color-primary)' : 'var(--glass-border)'}`,
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                      transition: 'all var(--transition-fast)',
-                    }}
+                    className={`chart-filter-chip ${active ? 'active' : ''}`}
                   >
                     {opt.label}
                   </button>
@@ -984,7 +973,7 @@ export default function Dashboard() {
             </div>
 
             {/* Strict 4 Filter Options: Last 7 Days, Past 30 Days, This Month, This Year */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+            <div className="chart-filter-chips-wrap">
               {[
                 { id: '7days', label: lang === 'bn' ? 'গত ৭ দিন' : 'Last 7 Days' },
                 { id: '30days', label: lang === 'bn' ? 'গত ৩০ দিন' : 'Past 30 Days' },
@@ -997,18 +986,7 @@ export default function Dashboard() {
                     key={opt.id}
                     type="button"
                     onClick={() => setTrendHorizon(opt.id)}
-                    style={{
-                      padding: '3px 9px',
-                      borderRadius: 'var(--radius-full)',
-                      fontSize: '11px',
-                      fontWeight: 'var(--weight-semibold)',
-                      background: active ? 'var(--color-primary)' : 'var(--glass-bg-subtle)',
-                      color: active ? '#111411' : 'var(--color-text-secondary)',
-                      border: `1px solid ${active ? 'var(--color-primary)' : 'var(--glass-border)'}`,
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                      transition: 'all var(--transition-fast)',
-                    }}
+                    className={`chart-filter-chip ${active ? 'active' : ''}`}
                   >
                     {opt.label}
                   </button>

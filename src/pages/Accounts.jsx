@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Plus, Wallet, Building2, Smartphone, Edit2, Trash2,
   ArrowRightLeft, History, SlidersHorizontal, Sparkles, CheckCircle2,
@@ -52,6 +52,18 @@ export default function Accounts() {
   const [formName, setFormName] = useState('');
   const [formBalance, setFormBalance] = useState('');
   const [formIncomeSource, setFormIncomeSource] = useState('salary');
+  const [providerDropdownOpen, setProviderDropdownOpen] = useState(false);
+  const providerDropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (providerDropdownRef.current && !providerDropdownRef.current.contains(e.target)) {
+        setProviderDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Quick Add Money state
   const [topupAccount, setTopupAccount] = useState(null);
@@ -80,6 +92,7 @@ export default function Accounts() {
     setFormBalance('');
     setFormIncomeSource('salary');
     setEditingAccount(null);
+    setProviderDropdownOpen(false);
   };
 
   const openAdd = () => {
@@ -94,6 +107,7 @@ export default function Accounts() {
     setFormProviderId(prov ? prov.id : (account.type === 'mfs' ? 'bkash' : account.type === 'bank' ? 'brac' : 'cash_wallet'));
     setFormName(account.name);
     setFormBalance(String(account.balance));
+    setProviderDropdownOpen(false);
     setShowAddModal(true);
   };
 
@@ -196,18 +210,6 @@ export default function Accounts() {
           <p className="page-subtitle">{t('accounts.subtitle')}</p>
         </div>
         <div className="page-header-actions">
-          {accounts.length >= 2 && (
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm header-action-btn"
-              onClick={() => setShowTransferModal(true)}
-              title={t('accounts.transfer')}
-            >
-              <ArrowRightLeft size={15} />
-              <span className="btn-text-full">{t('accounts.transfer')}</span>
-              <span className="btn-text-short btn-text-compact-hide">{lang === 'bn' ? 'ট্রান্সফার' : 'Transfer'}</span>
-            </button>
-          )}
           <button type="button" className="btn btn-primary btn-sm header-action-btn" onClick={openAdd}>
             <Plus size={16} strokeWidth={2.5} />
             <span className="btn-text-full">{t('accounts.addAccount')}</span>
@@ -245,15 +247,6 @@ export default function Accounts() {
                   <span>{t('accounts.transfer')}</span>
                 </button>
               )}
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                onClick={openAdd}
-                style={{ gap: 5 }}
-              >
-                <Plus size={15} strokeWidth={2.5} />
-                <span>{t('accounts.addAccount')}</span>
-              </button>
             </div>
           </div>
         </div>
@@ -442,8 +435,8 @@ export default function Accounts() {
           </div>
         </div>
 
-        {/* Provider Dropdown with Brand Logo */}
-        <div className="form-group">
+        {/* Provider Logo Dropdown (Single data layer, logo-only with stroke outline) */}
+        <div className="form-group" style={{ position: 'relative' }} ref={providerDropdownRef}>
           <label className="form-label">
             {formType === 'mfs'
               ? (lang === 'bn' ? 'প্রোভাইডার নির্বাচন' : 'MFS Provider')
@@ -451,66 +444,49 @@ export default function Accounts() {
               ? (lang === 'bn' ? 'ব্যাংক নির্বাচন' : 'Bank')
               : (lang === 'bn' ? 'ওয়ালেট ধরন' : 'Wallet Type')}
           </label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 40,
-              height: 40,
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}>
-              <ProviderLogo providerId={formProviderId} type={formType} size={22} />
-            </div>
 
-            <div style={{ position: 'relative', flex: 1 }}>
-              <select
-                className="form-input form-select"
-                value={formProviderId}
-                onChange={(e) => {
-                  const pId = e.target.value;
-                  setFormProviderId(pId);
-                  const list = formType === 'mfs' ? MFS_PROVIDERS : formType === 'bank' ? BANK_PROVIDERS : WALLET_PROVIDERS;
-                  const p = list.find((item) => item.id === pId);
-                  if (p && !editingAccount) {
-                    setFormName(lang === 'bn' ? (p.nameBn || p.name) : p.name);
-                  }
-                }}
-                style={{ height: 40, paddingRight: 32 }}
-              >
-                {(formType === 'mfs' ? MFS_PROVIDERS : formType === 'bank' ? BANK_PROVIDERS : WALLET_PROVIDERS).map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {lang === 'bn' ? (p.nameBn || p.name) : p.name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                size={15}
-                style={{
-                  position: 'absolute',
-                  right: 12,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  pointerEvents: 'none',
-                  color: 'var(--color-text-tertiary)',
-                }}
-              />
+          <button
+            type="button"
+            className="provider-dropdown-trigger"
+            onClick={() => setProviderDropdownOpen((prev) => !prev)}
+            aria-expanded={providerDropdownOpen}
+          >
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <ProviderLogo providerId={formProviderId} type={formType} size={36} />
             </div>
-          </div>
-        </div>
+            <ChevronDown
+              size={18}
+              style={{
+                transform: providerDropdownOpen ? 'rotate(180deg)' : 'none',
+                transition: 'transform 0.2s ease',
+                color: 'var(--color-text-tertiary)',
+              }}
+            />
+          </button>
 
-        <div className="form-group">
-          <label className="form-label">{getNameLabel()}</label>
-          <input
-            className="form-input"
-            type="text"
-            value={formName}
-            onChange={(e) => setFormName(e.target.value)}
-            placeholder={getPlaceholder()}
-          />
+          {providerDropdownOpen && (
+            <div className="provider-dropdown-popover">
+              {(formType === 'mfs' ? MFS_PROVIDERS : formType === 'bank' ? BANK_PROVIDERS : WALLET_PROVIDERS).map((p) => {
+                const isSelected = formProviderId === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    title={p.name}
+                    aria-label={p.name}
+                    className={`provider-dropdown-item ${isSelected ? 'selected' : ''}`}
+                    onClick={() => {
+                      setFormProviderId(p.id);
+                      setFormName(lang === 'bn' ? (p.nameBn || p.name) : p.name);
+                      setProviderDropdownOpen(false);
+                    }}
+                  >
+                    <ProviderLogo providerId={p.id} type={formType} size={36} />
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Existing Account Auto-update Notice */}
