@@ -322,11 +322,10 @@ export default function Accounts() {
                   <div className="account-more-wrap">
                     <button
                       type="button"
-                      className="btn btn-sm btn-ghost account-action-btn"
+                      className="account-more-btn"
                       onClick={() => setOpenMenuAccountId(openMenuAccountId === acc.id ? null : acc.id)}
                       title={lang === 'bn' ? 'আরও অপশন' : 'More options'}
                       aria-label="More options"
-                      style={{ padding: '6px 8px' }}
                     >
                       <MoreVertical size={16} />
                     </button>
@@ -334,7 +333,7 @@ export default function Accounts() {
                     {openMenuAccountId === acc.id && (
                       <>
                         <div
-                          style={{ position: 'fixed', inset: 0, zIndex: 45 }}
+                          style={{ position: 'fixed', inset: 0, zIndex: 95 }}
                           onClick={() => setOpenMenuAccountId(null)}
                         />
                         <div className="account-more-dropdown">
@@ -454,25 +453,26 @@ export default function Accounts() {
               <>
                 <button
                   type="button"
-                  className="provider-name-dropdown-trigger"
+                  className="provider-logo-dropdown-trigger"
                   onClick={() => setProviderDropdownOpen((prev) => !prev)}
                   aria-expanded={providerDropdownOpen}
+                  title={currentDisplayName}
                 >
-                  <span style={{ fontSize: '13.5px', fontWeight: 'var(--weight-semibold)', color: 'var(--color-text-primary)' }}>
-                    {currentDisplayName}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <ProviderLogo providerId={currentProv?.id} name={currentProv?.name} type={formType} size={36} />
+                  </div>
                   <ChevronDown
-                    size={17}
+                    size={18}
                     style={{
                       transform: providerDropdownOpen ? 'rotate(180deg)' : 'none',
                       transition: 'transform 0.2s ease',
-                      color: 'var(--color-text-tertiary)',
+                      color: 'var(--color-text-secondary)',
                     }}
                   />
                 </button>
 
                 {providerDropdownOpen && (
-                  <div className="provider-name-dropdown-popover">
+                  <div className="provider-logo-dropdown-popover">
                     {providerList.map((p) => {
                       const isSelected = formProviderId === p.id;
                       const pName = lang === 'bn' ? (p.nameBn || p.name) : p.name;
@@ -480,17 +480,16 @@ export default function Accounts() {
                         <button
                           key={p.id}
                           type="button"
-                          className={`provider-name-option ${isSelected ? 'selected' : ''}`}
+                          className={`provider-logo-tile ${isSelected ? 'selected' : ''}`}
+                          title={pName}
+                          aria-label={pName}
                           onClick={() => {
                             setFormProviderId(p.id);
                             setFormName(pName);
                             setProviderDropdownOpen(false);
                           }}
                         >
-                          <span>{pName}</span>
-                          {isSelected && (
-                            <CheckCircle2 size={16} style={{ color: '#5ED21C', flexShrink: 0 }} />
-                          )}
+                          <ProviderLogo providerId={p.id} name={p.name} type={formType} size={36} />
                         </button>
                       );
                     })}

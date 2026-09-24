@@ -1,11 +1,12 @@
 import { useState, useMemo, useRef } from 'react';
 import {
   Plus, ArrowUpRight, ArrowDownRight, Search,
-  Upload, Download, Edit2, Trash2, Filter, X,
+  Upload, Download, Edit2, Trash2, Filter, X, Calendar,
 } from 'lucide-react';
 import { useTranslation } from '../i18n/index.jsx';
 import useStore from '../store/useStore.js';
 import Modal from '../components/ui/Modal.jsx';
+import { ProviderLogo } from '../lib/accountProviders.jsx';
 
 export default function Transactions() {
   const { t, formatCurrency, formatDate, lang } = useTranslation();
@@ -280,9 +281,10 @@ export default function Transactions() {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="card transaction-filters-card" style={{ marginBottom: 'var(--space-4)', padding: '12px 14px' }}>
+      {/* Filters Card */}
+      <div className="card transaction-filters-card" style={{ marginBottom: 'var(--space-4)', padding: '14px 16px' }}>
         <div className="transaction-filters-grid">
+          {/* Search Box with stroke */}
           <div className="transaction-search-wrap">
             <Search size={16} className="transaction-search-icon" />
             <input
@@ -303,12 +305,17 @@ export default function Transactions() {
               </button>
             )}
           </div>
+
+          {/* Dropdown Filters with Stroke */}
           <div className="transaction-selects-row">
             <div className="transaction-select-wrap">
-              <select className="form-input form-select" value={filterType} onChange={(e) => setFilterType(e.target.value)}>
-                <option value="all">{t('transactions.all')}</option>
-                <option value="income">{t('transactions.income')}</option>
-                <option value="expense">{t('transactions.expense')}</option>
+              <select className="form-input form-select" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+                <option value="all">{lang === 'bn' ? 'সব ক্যাটাগরি' : 'All Categories'}</option>
+                {[...(categories.expense || []), ...(categories.income || [])].map((c) => (
+                  <option key={`${c.id}`} value={c.id}>
+                    {c.custom ? c.label : t(`categories.${categories.expense?.some(x => x.id === c.id) ? 'expense' : 'income'}.${c.key}`)}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="transaction-select-wrap">
@@ -320,65 +327,118 @@ export default function Transactions() {
           </div>
         </div>
 
-        {/* Horizontal Quick Filter Pills */}
-        <div className="filter-chips-scroll" style={{ marginTop: 8 }}>
-          <button
-            type="button"
-            className={`filter-chip-pill ${filterType === 'all' && filterSource === 'all' ? 'active' : ''}`}
-            onClick={() => { setFilterType('all'); setFilterSource('all'); }}
-          >
-            {t('transactions.all')}
-          </button>
-          <button
-            type="button"
-            className={`filter-chip-pill ${filterType === 'expense' ? 'active' : ''}`}
-            onClick={() => setFilterType(filterType === 'expense' ? 'all' : 'expense')}
-          >
-            <ArrowUpRight size={13} style={{ color: '#F43F5E' }} />
-            <span>{t('transactions.expense')}</span>
-          </button>
-          <button
-            type="button"
-            className={`filter-chip-pill ${filterType === 'income' ? 'active' : ''}`}
-            onClick={() => setFilterType(filterType === 'income' ? 'all' : 'income')}
-          >
-            <ArrowDownRight size={13} style={{ color: '#15803D' }} />
-            <span>{t('transactions.income')}</span>
-          </button>
-          {accounts.map((acc) => (
+        {/* Optimized Filter Controls: Type Segmented Switcher + Account Pills */}
+        <div className="transaction-filter-controls-row">
+          {/* Segmented Type Control */}
+          <div className="txn-type-segmented-wrap">
             <button
-              key={acc.id}
               type="button"
-              className={`filter-chip-pill ${filterSource === acc.id ? 'active' : ''}`}
-              onClick={() => setFilterSource(filterSource === acc.id ? 'all' : acc.id)}
+              className={`txn-type-segment-btn ${filterType === 'all' ? 'active' : ''}`}
+              onClick={() => setFilterType('all')}
             >
-              <span>{acc.name}</span>
+              {t('transactions.all')}
             </button>
-          ))}
+            <button
+              type="button"
+              className={`txn-type-segment-btn income ${filterType === 'income' ? 'active' : ''}`}
+              onClick={() => setFilterType(filterType === 'income' ? 'all' : 'income')}
+            >
+              <ArrowDownRight size={14} />
+              <span>{t('transactions.income')}</span>
+            </button>
+            <button
+              type="button"
+              className={`txn-type-segment-btn expense ${filterType === 'expense' ? 'active' : ''}`}
+              onClick={() => setFilterType(filterType === 'expense' ? 'all' : 'expense')}
+            >
+              <ArrowUpRight size={14} />
+              <span>{t('transactions.expense')}</span>
+            </button>
+          </div>
+
+          {/* Account Source Pills */}
+          <div className="txn-account-pills-wrap">
+            <button
+              type="button"
+              className={`filter-chip-pill ${filterSource === 'all' ? 'active' : ''}`}
+              onClick={() => setFilterSource('all')}
+            >
+              <span>{lang === 'bn' ? 'সব অ্যাকাউন্ট' : 'All Accounts'}</span>
+            </button>
+            {accounts.map((acc) => (
+              <button
+                key={acc.id}
+                type="button"
+                className={`filter-chip-pill ${filterSource === acc.id ? 'active' : ''}`}
+                onClick={() => setFilterSource(filterSource === acc.id ? 'all' : acc.id)}
+              >
+                <ProviderLogo providerId={acc.providerId} name={acc.name} type={acc.type} size={15} />
+                <span>{acc.name}</span>
+              </button>
+            ))}
+
+            {/* Clear Filters Reset Button if any filter is active */}
+            {(filterType !== 'all' || filterSource !== 'all' || filterCategory !== 'all' || searchQuery.trim()) && (
+              <button
+                type="button"
+                className="filter-chip-pill reset"
+                onClick={() => {
+                  setFilterType('all');
+                  setFilterSource('all');
+                  setFilterCategory('all');
+                  setSearchQuery('');
+                }}
+                title="Reset all filters"
+              >
+                <X size={12} />
+                <span>{lang === 'bn' ? 'রিসেট' : 'Reset'}</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Transaction List (Temporally Grouped) */}
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        {groupedTransactions.length > 0 ? (
-          <div>
-            {groupedTransactions.map((group) => (
-              <div key={group.dateStr} className="transaction-date-group">
-                {/* Sticky Date Group Divider Header */}
-                <div className="transaction-date-header">
-                  <div className="transaction-date-left">
-                    <span className="transaction-date-label">{group.label}</span>
-                    <span className="transaction-date-count">
-                      {group.items.length} {lang === 'bn' ? 'টি লেনদেন' : 'txns'}
-                    </span>
+      {/* Transaction List (Temporally Grouped into structured Day Cards) */}
+      {groupedTransactions.length > 0 ? (
+        <div className="transaction-day-cards-list">
+          {groupedTransactions.map((group) => {
+            const expenseSum = group.items.filter((i) => i.type === 'expense').reduce((s, i) => s + i.amount, 0);
+            const incomeSum = group.items.filter((i) => i.type === 'income').reduce((s, i) => s + i.amount, 0);
+
+            return (
+              <div key={group.dateStr} className="transaction-day-card card">
+                {/* Elevated Day Header */}
+                <div className="transaction-day-header">
+                  <div className="transaction-day-title-wrap">
+                    <div className="transaction-day-calendar-icon">
+                      <Calendar size={15} />
+                    </div>
+                    <div className="transaction-day-date-info">
+                      <span className="transaction-day-date-text">{group.label}</span>
+                      <span className="transaction-day-count-badge">
+                        {group.items.length} {lang === 'bn' ? 'টি লেনদেন' : (group.items.length === 1 ? 'txn' : 'txns')}
+                      </span>
+                    </div>
                   </div>
-                  <span className={`transaction-date-sum ${group.netDelta >= 0 ? 'income' : 'expense'}`}>
-                    {group.netDelta >= 0 ? '+' : ''}{formatCurrency(group.netDelta)}
-                  </span>
+
+                  {/* Day Summary Net Pill */}
+                  <div className="transaction-day-pills">
+                    {incomeSum > 0 && expenseSum > 0 ? (
+                      <div className="transaction-day-split-badge">
+                        <span className="split-income">+{formatCurrency(incomeSum)}</span>
+                        <span className="split-dot">·</span>
+                        <span className="split-expense">-{formatCurrency(expenseSum)}</span>
+                      </div>
+                    ) : (
+                      <div className={`transaction-day-net-badge ${group.netDelta >= 0 ? 'income' : 'expense'}`}>
+                        {group.netDelta >= 0 ? `+${formatCurrency(group.netDelta)}` : formatCurrency(group.netDelta)}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Items in this date group */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {/* Day Items List */}
+                <div className="transaction-day-items">
                   {group.items.map((txn) => {
                     const cat = getCategoryInfo(txn.categoryId, txn.type);
                     const acc = accounts.find((a) => a.id === txn.accountId);
@@ -386,14 +446,16 @@ export default function Transactions() {
                       <div
                         key={txn.id}
                         className="transaction-row"
-                        style={{ cursor: 'pointer' }}
                         onClick={() => setInspectingTxn(txn)}
                         title={lang === 'bn' ? 'রসিদ দেখতে ট্যাপ করুন' : 'Tap to inspect receipt'}
                       >
-                        <div className="transaction-icon" style={{
-                          background: cat?.color ? `${cat.color}20` : 'var(--color-surface-secondary)',
-                          color: cat?.color || 'var(--color-text-secondary)',
-                        }}>
+                        <div
+                          className="transaction-icon"
+                          style={{
+                            background: cat?.color ? `${cat.color}20` : 'var(--color-surface-secondary)',
+                            color: cat?.color || 'var(--color-text-secondary)',
+                          }}
+                        >
                           {txn.type === 'income' ? <ArrowDownRight size={18} /> : <ArrowUpRight size={18} />}
                         </div>
                         <div className="transaction-details">
@@ -425,20 +487,20 @@ export default function Transactions() {
                   })}
                 </div>
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="empty-state" style={{ padding: 'var(--space-8)' }}>
-            <div className="empty-state-icon"><Filter size={28} /></div>
-            <p className="empty-state-title">{t('transactions.noTransactions')}</p>
-            <p className="empty-state-desc">{t('transactions.noTransactionsDesc')}</p>
-            <button className="btn btn-primary btn-lg" onClick={openAdd}>
-              <Plus size={18} />
-              {t('transactions.addTransaction')}
-            </button>
-          </div>
-        )}
-      </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="card empty-state" style={{ padding: 'var(--space-8)' }}>
+          <div className="empty-state-icon"><Filter size={28} /></div>
+          <p className="empty-state-title">{t('transactions.noTransactions')}</p>
+          <p className="empty-state-desc">{t('transactions.noTransactionsDesc')}</p>
+          <button className="btn btn-primary btn-lg" onClick={openAdd}>
+            <Plus size={18} />
+            {t('transactions.addTransaction')}
+          </button>
+        </div>
+      )}
 
       {/* Add/Edit Transaction Modal */}
       <Modal
@@ -456,23 +518,25 @@ export default function Transactions() {
           </>
         }
       >
-        {/* Type Toggle */}
+        {/* Type Toggle Segmented Switcher */}
         <div className="form-group">
           <label className="form-label">{t('transactions.type')}</label>
-          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+          <div className="modal-type-segmented">
             <button
-              className={`type-pill type-pill-income ${formType === 'income' ? 'active' : ''}`}
+              type="button"
+              className={`modal-type-btn income ${formType === 'income' ? 'active' : ''}`}
               onClick={() => { setFormType('income'); setFormCategoryId(''); }}
             >
-              <ArrowDownRight size={16} />
-              {t('transactions.income')}
+              <ArrowDownRight size={17} />
+              <span>{t('transactions.income')}</span>
             </button>
             <button
-              className={`type-pill type-pill-expense ${formType === 'expense' ? 'active' : ''}`}
+              type="button"
+              className={`modal-type-btn expense ${formType === 'expense' ? 'active' : ''}`}
               onClick={() => { setFormType('expense'); setFormCategoryId(''); }}
             >
-              <ArrowUpRight size={16} />
-              {t('transactions.expense')}
+              <ArrowUpRight size={17} />
+              <span>{t('transactions.expense')}</span>
             </button>
           </div>
         </div>

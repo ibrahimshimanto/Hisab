@@ -218,7 +218,8 @@
       "health": "Health",
       "education": "Education",
       "shopping": "Shopping",
-      "subscriptions": "Subscriptions"
+      "subscriptions": "Subscriptions",
+      "savings": "Savings & DPS"
     },
     "income": {
       "salary": "Salary",
