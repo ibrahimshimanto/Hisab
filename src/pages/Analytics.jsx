@@ -38,7 +38,7 @@ ChartJS.register(
 );
 
 export default function Analytics() {
-  const { t, lang, formatCurrency } = useTranslation();
+  const { t, lang, formatCurrency, formatDate } = useTranslation();
   const { transactions, accounts, categories, settings, openQuickAdd } = useStore();
 
   const isDark = settings?.theme === 'dark';
@@ -146,8 +146,12 @@ export default function Analytics() {
     const today = new Date();
     const todayStr = today.toISOString().slice(0, 10);
 
-    if (activeHorizon === 'today' || activeHorizon === 'daily') {
+    if (activeHorizon === 'today') {
       return { start: todayStr, end: todayStr, label: lang === 'bn' ? 'আজ' : 'Today' };
+    }
+    if (activeHorizon === 'daily') {
+      const day = selectedDay || todayStr;
+      return { start: day, end: day, label: day };
     }
     if (activeHorizon === '7days') {
       const d = new Date();
@@ -191,7 +195,7 @@ export default function Analytics() {
       end: customEnd,
       label: lang === 'bn' ? 'কাস্টম সময়সীমা' : 'Custom Range',
     };
-  }, [activeHorizon, selectedYear, selectedMonth, monthNames, customStart, customEnd, lang]);
+  }, [activeHorizon, selectedYear, selectedMonth, monthNames, customStart, customEnd, lang, selectedDay]);
 
   // 1. FILTERED TRANSACTIONS BASED ON DATE RANGE
   const filteredData = useMemo(() => {
@@ -532,8 +536,11 @@ export default function Analytics() {
               fontWeight: 'var(--weight-semibold)',
               color: 'var(--color-text-secondary)',
             }}>
-              <CalendarIcon size={14} style={{ color: 'var(--color-primary-dark)' }} />
-              <span>{formatDate(dateRange.start)} {dateRange.start !== dateRange.end && `— ${formatDate(dateRange.end)}`}</span>
+              <CalendarIcon size={14} style={{ color: 'var(--color-primary-dark)', flexShrink: 0 }} />
+              <span>
+                {dateRange.start ? formatDate(dateRange.start) : ''}
+                {dateRange.start && dateRange.end && dateRange.start !== dateRange.end && ` — ${formatDate(dateRange.end)}`}
+              </span>
             </div>
           )}
         </div>
