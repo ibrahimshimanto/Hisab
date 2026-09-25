@@ -42,7 +42,7 @@ export default function Analytics() {
   const { transactions, accounts, categories, settings, openQuickAdd } = useStore();
 
   const isDark = settings?.theme === 'dark';
-  const [activeHorizon, setActiveHorizon] = useState('monthly'); // 'daily' | 'monthly' | 'yearly' | 'custom'
+  const [activeHorizon, setActiveHorizon] = useState('30days'); // 'today' | '7days' | '30days' | 'thisMonth' | 'thisYear' | 'custom'
 
   // Daily filter state
   const [selectedDay, setSelectedDay] = useState(() => new Date().toISOString().slice(0, 10));
@@ -141,28 +141,65 @@ export default function Analytics() {
     lang === 'bn' ? 'ডিসেম্বর' : 'December',
   ], [lang]);
 
-  // 1. FILTERED TRANSACTIONS BASED ON ACTIVE HORIZON
-  const filteredData = useMemo(() => {
-    let txns = [];
+  // DATE RANGE RESOLVER FOR ALL 6 PRESETS
+  const dateRange = useMemo(() => {
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
 
-    if (activeHorizon === 'daily') {
-      txns = transactions.filter((t) => t.date && t.date.slice(0, 10) === selectedDay);
-    } else if (activeHorizon === 'monthly') {
-      txns = transactions.filter((t) => {
-        const d = new Date(t.date);
-        return d.getFullYear() === selectedYear && d.getMonth() === selectedMonth;
-      });
-    } else if (activeHorizon === 'yearly') {
-      txns = transactions.filter((t) => {
-        const d = new Date(t.date);
-        return d.getFullYear() === selectedYear;
-      });
-    } else if (activeHorizon === 'custom') {
-      txns = transactions.filter((t) => {
-        const dateStr = t.date.slice(0, 10);
-        return dateStr >= customStart && dateStr <= customEnd;
-      });
+    if (activeHorizon === 'today' || activeHorizon === 'daily') {
+      return { start: todayStr, end: todayStr, label: lang === 'bn' ? 'আজ' : 'Today' };
     }
+    if (activeHorizon === '7days') {
+      const d = new Date();
+      d.setDate(d.getDate() - 6);
+      return {
+        start: d.toISOString().slice(0, 10),
+        end: todayStr,
+        label: lang === 'bn' ? 'গত ৭ দিন' : 'Last 7 Days',
+      };
+    }
+    if (activeHorizon === '30days') {
+      const d = new Date();
+      d.setDate(d.getDate() - 29);
+      return {
+        start: d.toISOString().slice(0, 10),
+        end: todayStr,
+        label: lang === 'bn' ? 'গত ৩০ দিন' : 'Last 30 Days',
+      };
+    }
+    if (activeHorizon === 'thisMonth' || activeHorizon === 'monthly') {
+      const startOfMonth = new Date(selectedYear, selectedMonth, 1);
+      const endOfMonth = new Date(selectedYear, selectedMonth + 1, 0);
+      return {
+        start: startOfMonth.toISOString().slice(0, 10),
+        end: endOfMonth.toISOString().slice(0, 10),
+        label: `${monthNames[selectedMonth]} ${selectedYear}`,
+      };
+    }
+    if (activeHorizon === 'thisYear' || activeHorizon === 'yearly') {
+      const startOfYear = new Date(selectedYear, 0, 1);
+      const endOfYear = new Date(selectedYear, 11, 31);
+      return {
+        start: startOfYear.toISOString().slice(0, 10),
+        end: endOfYear.toISOString().slice(0, 10),
+        label: `${selectedYear}`,
+      };
+    }
+    // custom
+    return {
+      start: customStart,
+      end: customEnd,
+      label: lang === 'bn' ? 'কাস্টম সময়সীমা' : 'Custom Range',
+    };
+  }, [activeHorizon, selectedYear, selectedMonth, monthNames, customStart, customEnd, lang]);
+
+  // 1. FILTERED TRANSACTIONS BASED ON DATE RANGE
+  const filteredData = useMemo(() => {
+    const { start, end } = dateRange;
+    const txns = transactions.filter((t) => {
+      const d = t.date ? t.date.slice(0, 10) : '';
+      return d >= start && d <= end;
+    });
 
     const income = txns.filter((t) => t.type === 'income').reduce((s, t) => s + (t.amount || 0), 0);
     const expense = txns.filter((t) => t.type === 'expense').reduce((s, t) => s + (t.amount || 0), 0);
@@ -183,7 +220,7 @@ export default function Analytics() {
       savingsRate,
       categoryTotals,
     };
-  }, [transactions, activeHorizon, selectedDay, selectedYear, selectedMonth, customStart, customEnd]);
+  }, [transactions, dateRange]);
 
   // 2. DAY OF WEEK PATTERNS
   const dayOfWeekData = useMemo(() => {
@@ -361,15 +398,17 @@ export default function Analytics() {
 
       {/* 1. HORIZON SELECTOR CAPSULE BAR */}
       <div className="analytics-date-filter-card">
-        {/* Horizon Tabs (Symmetric Segmented Control) */}
+        {/* Horizon Tabs (Segmented Control: Today, Last 7 Days, Last 30 Days, This Month, This Year, Custom) */}
         <div className="horizon-segmented-control">
           {[
-            { id: 'daily', short: lang === 'bn' ? 'দৈনিক' : 'Daily', full: lang === 'bn' ? 'দৈনিক / নির্দিষ্ট দিন' : 'Daily / By Date' },
-            { id: 'monthly', short: lang === 'bn' ? 'মাসিক' : 'Monthly', full: lang === 'bn' ? 'মাসিক পর্যালোচনা' : 'Monthly Overview' },
-            { id: 'yearly', short: lang === 'bn' ? 'বাৎসরিক' : 'Yearly', full: lang === 'bn' ? 'বাৎসরিক গতিপথ' : 'Yearly Trajectory' },
-            { id: 'custom', short: lang === 'bn' ? 'কাস্টম' : 'Custom', full: lang === 'bn' ? 'কাস্টম সময়সীমা' : 'Custom Period' },
+            { id: 'today', label: lang === 'bn' ? 'আজ' : 'Today' },
+            { id: '7days', label: lang === 'bn' ? 'গত ৭ দিন' : 'Last 7 Days' },
+            { id: '30days', label: lang === 'bn' ? 'গত ৩০ দিন' : 'Last 30 Days' },
+            { id: 'thisMonth', label: lang === 'bn' ? 'এই মাস' : 'This Month' },
+            { id: 'thisYear', label: lang === 'bn' ? 'এই বছর' : 'This Year' },
+            { id: 'custom', label: lang === 'bn' ? 'কাস্টম' : 'Custom Range' },
           ].map((h) => {
-            const isActive = activeHorizon === h.id;
+            const isActive = activeHorizon === h.id || (h.id === 'thisMonth' && activeHorizon === 'monthly') || (h.id === 'thisYear' && activeHorizon === 'yearly') || (h.id === 'today' && activeHorizon === 'daily');
             return (
               <button
                 key={h.id}
@@ -377,36 +416,15 @@ export default function Analytics() {
                 className={`horizon-segment-btn ${isActive ? 'active' : ''}`}
                 onClick={() => setActiveHorizon(h.id)}
               >
-                <span className="btn-text-short">{h.short}</span>
-                <span className="btn-text-full">{h.full}</span>
+                <span>{h.label}</span>
               </button>
             );
           })}
         </div>
 
-        {/* Centered Dynamic Horizon Controls */}
+        {/* Dynamic Horizon Controls / Stepper / Date Pickers */}
         <div className="horizon-controls-bar">
-          {activeHorizon === 'daily' && (
-            <div className="horizon-daily-wrap">
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => setSelectedDay(new Date().toISOString().slice(0, 10))}
-                style={{ height: '36px', padding: '0 12px', fontSize: '12px' }}
-              >
-                <CalendarIcon size={14} />
-                <span>{lang === 'bn' ? 'আজ' : 'Today'}</span>
-              </button>
-              <input
-                type="date"
-                className="horizon-date-input"
-                value={selectedDay}
-                onChange={(e) => setSelectedDay(e.target.value)}
-              />
-            </div>
-          )}
-
-          {activeHorizon === 'monthly' && (
+          {(activeHorizon === 'thisMonth' || activeHorizon === 'monthly') && (
             <div className="horizon-stepper-wrap">
               <button
                 type="button"
@@ -447,7 +465,7 @@ export default function Analytics() {
             </div>
           )}
 
-          {activeHorizon === 'yearly' && (
+          {(activeHorizon === 'thisYear' || activeHorizon === 'yearly') && (
             <div className="horizon-yearly-wrap">
               {[2024, 2025, 2026].map((y) => (
                 <button
@@ -498,31 +516,24 @@ export default function Analytics() {
                   />
                 </label>
               </div>
+            </div>
+          )}
 
-              {/* Quick Preset Ranges */}
-              <div className="horizon-custom-presets">
-                <button
-                  type="button"
-                  className={`horizon-preset-chip ${isPresetActive(7) ? 'active' : ''}`}
-                  onClick={() => setPresetRange(7)}
-                >
-                  {lang === 'bn' ? '৭ দিন' : 'Last 7 Days'}
-                </button>
-                <button
-                  type="button"
-                  className={`horizon-preset-chip ${isPresetActive(30) ? 'active' : ''}`}
-                  onClick={() => setPresetRange(30)}
-                >
-                  {lang === 'bn' ? '৩০ দিন' : 'Last 30 Days'}
-                </button>
-                <button
-                  type="button"
-                  className={`horizon-preset-chip ${isPresetActive('month') ? 'active' : ''}`}
-                  onClick={() => setPresetRange('month')}
-                >
-                  {lang === 'bn' ? 'চলতি মাস' : 'This Month'}
-                </button>
-              </div>
+          {(activeHorizon === 'today' || activeHorizon === 'daily' || activeHorizon === '7days' || activeHorizon === '30days') && (
+            <div className="horizon-range-badge" style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '7px 14px',
+              borderRadius: 'var(--radius-lg)',
+              background: 'var(--color-surface, #FFFFFF)',
+              border: '1.5px solid var(--card-inner-border, rgba(17, 20, 17, 0.14))',
+              fontSize: '12.5px',
+              fontWeight: 'var(--weight-semibold)',
+              color: 'var(--color-text-secondary)',
+            }}>
+              <CalendarIcon size={14} style={{ color: 'var(--color-primary-dark)' }} />
+              <span>{formatDate(dateRange.start)} {dateRange.start !== dateRange.end && `— ${formatDate(dateRange.end)}`}</span>
             </div>
           )}
         </div>
@@ -597,14 +608,14 @@ export default function Analytics() {
         <div className="card" style={{ padding: 'var(--space-5)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
             <h3 className="card-title" style={{ margin: 0 }}>
-              {activeHorizon === 'yearly'
+              {(activeHorizon === 'thisYear' || activeHorizon === 'yearly')
                 ? (lang === 'bn' ? `${selectedYear} এর বাৎসরিক গতিপথ` : `${selectedYear} Annual Trajectory`)
                 : (lang === 'bn' ? 'ক্যাশ ফ্লো তুলনা (ইনফ্লো বনাম আউটফ্লো)' : 'Inflow vs Outflow Dynamics')}
             </h3>
           </div>
 
           <div style={{ height: 260, position: 'relative' }}>
-            {activeHorizon === 'yearly' ? (
+            {(activeHorizon === 'thisYear' || activeHorizon === 'yearly') ? (
               <Bar
                 data={yearlyTrajectoryData}
                 options={{
@@ -661,8 +672,8 @@ export default function Analytics() {
         </div>
       </div>
 
-      {/* 4. INTERACTIVE CALENDAR SPENDING HEATMAP (Monthly / Daily view) */}
-      {(activeHorizon === 'monthly' || activeHorizon === 'daily') && (
+      {/* 4. INTERACTIVE CALENDAR SPENDING HEATMAP */}
+      {(activeHorizon !== 'thisYear' && activeHorizon !== 'yearly') && (
         <div className="card" style={{ padding: 'var(--space-5)', marginBottom: 'var(--space-6)' }}>
           {/* Card Header & Legend */}
           <div className="heatmap-header-wrap">

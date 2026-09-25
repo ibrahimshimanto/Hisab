@@ -578,25 +578,8 @@ export default function Onboarding({ onComplete }) {
                       : (lang === 'bn' ? 'ক্যাশ ক্যাটাগরি:' : 'Wallet Type:')}
                   </label>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    {/* Live Provider Logo Box */}
-                    <div style={{
-                      width: 42,
-                      height: 42,
-                      borderRadius: 'var(--radius-md)',
-                      background: 'var(--color-surface)',
-                      border: '1px solid var(--color-border)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}>
-                      <ProviderLogo providerId={selectedProviderId} type={accType} size={24} />
-                    </div>
-
-                    {/* Styled Select Dropdown */}
-                    <div style={{ position: 'relative', flex: 1 }}>
-                      <select
+                  <div style={{ position: 'relative', width: '100%' }}>
+                    <select
                         className="form-input form-select"
                         value={selectedProviderId}
                         onChange={handleProviderChange}
@@ -625,7 +608,6 @@ export default function Onboarding({ onComplete }) {
                         }}
                       />
                     </div>
-                  </div>
                 </div>
 
                 {/* Account Custom Label & Balance Inputs */}

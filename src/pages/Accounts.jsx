@@ -453,26 +453,25 @@ export default function Accounts() {
               <>
                 <button
                   type="button"
-                  className="provider-logo-dropdown-trigger"
+                  className="provider-name-dropdown-trigger"
                   onClick={() => setProviderDropdownOpen((prev) => !prev)}
                   aria-expanded={providerDropdownOpen}
                   title={currentDisplayName}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <ProviderLogo providerId={currentProv?.id} name={currentProv?.name} type={formType} size={36} />
-                  </div>
+                  <span className="provider-name-selected-text">{currentDisplayName}</span>
                   <ChevronDown
                     size={18}
                     style={{
                       transform: providerDropdownOpen ? 'rotate(180deg)' : 'none',
                       transition: 'transform 0.2s ease',
                       color: 'var(--color-text-secondary)',
+                      flexShrink: 0,
                     }}
                   />
                 </button>
 
                 {providerDropdownOpen && (
-                  <div className="provider-logo-dropdown-popover">
+                  <div className="provider-name-dropdown-popover">
                     {providerList.map((p) => {
                       const isSelected = formProviderId === p.id;
                       const pName = lang === 'bn' ? (p.nameBn || p.name) : p.name;
@@ -480,16 +479,15 @@ export default function Accounts() {
                         <button
                           key={p.id}
                           type="button"
-                          className={`provider-logo-tile ${isSelected ? 'selected' : ''}`}
-                          title={pName}
-                          aria-label={pName}
+                          className={`provider-name-option ${isSelected ? 'selected' : ''}`}
                           onClick={() => {
                             setFormProviderId(p.id);
                             setFormName(pName);
                             setProviderDropdownOpen(false);
                           }}
                         >
-                          <ProviderLogo providerId={p.id} name={p.name} type={formType} size={36} />
+                          <span>{pName}</span>
+                          {isSelected && <CheckCircle2 size={16} className="provider-name-check" />}
                         </button>
                       );
                     })}

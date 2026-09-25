@@ -372,7 +372,6 @@ export default function Transactions() {
                 className={`filter-chip-pill ${filterSource === acc.id ? 'active' : ''}`}
                 onClick={() => setFilterSource(filterSource === acc.id ? 'all' : acc.id)}
               >
-                <ProviderLogo providerId={acc.providerId} name={acc.name} type={acc.type} size={15} />
                 <span>{acc.name}</span>
               </button>
             ))}
