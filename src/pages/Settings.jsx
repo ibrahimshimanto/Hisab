@@ -30,7 +30,6 @@ import useStore from '../store/useStore.js';
 import Modal from '../components/ui/Modal.jsx';
 import HisabLogo from '../components/common/HisabLogo.jsx';
 import UserAvatar from '../components/common/UserAvatar.jsx';
-import { AVATAR_OPTIONS } from '../lib/avatars.js';
 
 export default function Settings() {
   const { t, lang, changeLanguage, formatCurrency } = useTranslation();
@@ -56,8 +55,7 @@ export default function Settings() {
   } = useStore();
 
   const [name, setName] = useState(profile.name || '');
-  const [avatar, setAvatar] = useState(profile?.avatar || 'fox');
-  const [salary, setSalary] = useState(profile.monthlySalary ? String(profile.monthlySalary) : '');
+  const [avatar, setAvatar] = useState(profile?.avatar || '');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [saved, setSaved] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -105,7 +103,7 @@ export default function Settings() {
     updateProfile({
       name: name.trim(),
       avatar,
-      monthlySalary: parseFloat(salary) || 0,
+      monthlySalary: profile?.monthlySalary || 0,
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -157,7 +155,6 @@ export default function Settings() {
   const handleReset = () => {
     resetAll();
     setName('');
-    setSalary('');
     setShowResetConfirm(false);
     window.location.reload();
   };
@@ -175,7 +172,7 @@ export default function Settings() {
       {/* Symmetric 2-Column Balanced Dashboard (Zero Blank Space) */}
       <div className="settings-grid">
         {/* ========================================================
-            COLUMN 1: PROFILE & APPEARANCE / EXPERIENCE
+            COLUMN 1: PROFILE & FINANCIAL DRIVING MODE
             ======================================================== */}
         <div className="settings-col">
           {/* Card 1: Profile & Identity */}
@@ -185,102 +182,58 @@ export default function Settings() {
                 <div>
                   <h3 className="card-title">{t('settings.profile')}</h3>
                   <p className="card-subtitle" style={{ margin: '2px 0 0' }}>
-                    {lang === 'bn' ? 'ব্যক্তিগত তথ্য ও আয়ের বিবরণ' : 'Personal identity & income parameters'}
+                    {lang === 'bn' ? 'ব্যক্তিগত তথ্য ও প্রোফাইল' : 'Personal identity & account details'}
                   </p>
                 </div>
                 <div className="settings-user-badge">
-                  <UserAvatar avatar={avatar} name={name || userName} size={30} />
-                  <span style={{ fontSize: '11px', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-primary)' }}>
+                  <UserAvatar avatar={avatar} name={name || userName} size={28} />
+                  <span style={{ fontSize: '11.5px', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-primary)' }}>
                     {displayName(name || userName)}
                   </span>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', marginTop: 'var(--space-3)' }}>
-                {/* Avatar DP Selection */}
-                <div style={{ margin: 0 }}>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    accept="image/*"
-                    onChange={handlePhotoUpload}
-                    style={{ display: 'none' }}
-                  />
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <label className="form-label" style={{ margin: 0 }}>
-                      {lang === 'bn' ? 'প্রোফাইল ছবি / অবতার' : 'Profile Photo / Avatar'}
-                    </label>
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => fileInputRef.current?.click()}
-                      style={{ fontSize: '11px', padding: '3px 8px', gap: 5 }}
-                    >
-                      <Camera size={12} />
-                      <span>{lang === 'bn' ? 'ডিভাইস থেকে আপলোড' : 'Upload from Device'}</span>
-                    </button>
-                  </div>
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: avatar?.startsWith('data:') || avatar?.startsWith('http') ? 'repeat(7, 1fr)' : 'repeat(6, 1fr)',
-                    gap: 6,
-                  }}>
-                    {(avatar?.startsWith('data:') || avatar?.startsWith('http')) && (
-                      <button
-                        type="button"
-                        onClick={() => {}}
-                        style={{
-                          background: 'transparent',
-                          border: '2px solid #111411',
-                          outline: '2px solid #5ED21C',
-                          outlineOffset: '1.5px',
-                          borderRadius: 'var(--radius-md)',
-                          height: 36,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: 'pointer',
-                          overflow: 'hidden',
-                          padding: 0,
-                        }}
-                        title={lang === 'bn' ? 'ডিভাইসের ছবি (সক্রিয়)' : 'Custom Uploaded Photo (Active)'}
-                      >
-                        <img src={avatar} alt="Custom" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      </button>
-                    )}
-                    {AVATAR_OPTIONS.map((opt) => {
-                      const isSelected = avatar === opt.id;
-                      return (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() => setAvatar(opt.id)}
-                          style={{
-                            background: opt.bg,
-                            border: isSelected ? '2px solid #111411' : '1px solid rgba(0,0,0,0.1)',
-                            outline: isSelected ? '2px solid #5ED21C' : 'none',
-                            outlineOffset: '1.5px',
-                            borderRadius: 'var(--radius-md)',
-                            height: 36,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '18px',
-                            cursor: 'pointer',
-                            transform: isSelected ? 'scale(1.06)' : 'scale(1)',
-                            transition: 'all var(--transition-fast)',
-                          }}
-                          title={lang === 'bn' ? opt.labelBn : opt.labelEn}
-                        >
-                          {opt.emoji}
-                        </button>
-                      );
-                    })}
+              {/* Profile Identity Row: Avatar with Camera Trigger + Name Input */}
+              <div className="profile-identity-box">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/*"
+                  onChange={handlePhotoUpload}
+                  style={{ display: 'none' }}
+                />
+                <div
+                  className="profile-avatar-trigger-box"
+                  onClick={() => fileInputRef.current?.click()}
+                  title={lang === 'bn' ? 'ছবি আপলোড করতে ক্লিক করুন' : 'Click to upload or change photo'}
+                >
+                  <UserAvatar avatar={avatar} name={name || userName} size={58} />
+                  <div className="profile-avatar-camera-badge">
+                    <Camera size={11} />
                   </div>
                 </div>
 
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">{t('settings.name')}</label>
+                <div className="form-group" style={{ margin: 0, flex: 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <label className="form-label" style={{ margin: 0 }}>{t('settings.name')}</label>
+                    {avatar?.startsWith('data:') && (
+                      <button
+                        type="button"
+                        onClick={() => setAvatar('')}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          padding: 0,
+                          fontSize: '11px',
+                          color: 'var(--color-expense)',
+                          cursor: 'pointer',
+                          fontWeight: 'var(--weight-medium)',
+                        }}
+                      >
+                        {lang === 'bn' ? 'ছবি মুছুন' : 'Remove Photo'}
+                      </button>
+                    )}
+                  </div>
                   <input
                     className="form-input"
                     type="text"
@@ -289,38 +242,10 @@ export default function Settings() {
                     placeholder={t('settings.namePlaceholder')}
                   />
                 </div>
-
-                <div className="form-group" style={{ margin: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <label className="form-label" style={{ margin: 0 }}>{t('settings.monthlySalary')}</label>
-                    <span style={{ fontSize: '11px', fontWeight: 'var(--weight-bold)', color: 'var(--color-primary-dark)' }}>
-                      {salary ? formatCurrency(Number(salary) || 0) : 'BDT (৳)'}
-                    </span>
-                  </div>
-                  <input
-                    className="form-input"
-                    type="number"
-                    value={salary}
-                    onChange={(e) => setSalary(e.target.value)}
-                    placeholder={t('settings.salaryPlaceholder')}
-                  />
-                  <div className="quick-increment-chips">
-                    {[10000, 25000, 50000].map((amt) => (
-                      <button
-                        key={amt}
-                        type="button"
-                        className="quick-increment-chip"
-                        onClick={() => setSalary(String((Number(salary) || 0) + amt))}
-                      >
-                        +৳{(amt / 1000).toFixed(0)}k
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
             </div>
 
-            <div style={{ marginTop: 'var(--space-5)', paddingTop: 'var(--space-4)', borderTop: '1px solid var(--color-border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div style={{ marginTop: 'var(--space-4)', paddingTop: 'var(--space-3)', borderTop: '1px solid var(--color-border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
               <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', gap: 5 }}>
                 <CheckCircle2 size={13} style={{ color: '#5ED21C' }} />
                 <span>{lang === 'bn' ? 'মুদ্রা: বাংলাদেশী টাকা (৳)' : 'Base Currency: BDT (৳)'}</span>
@@ -330,101 +255,15 @@ export default function Settings() {
                 type="button"
                 className={`btn ${saved ? 'btn-success' : 'btn-primary'}`}
                 onClick={handleSaveProfile}
-                style={{ minWidth: 100 }}
+                style={{ minWidth: 90, height: 34, fontSize: '12px' }}
               >
-                {saved ? <Check size={16} /> : null}
+                {saved ? <Check size={14} /> : null}
                 <span>{saved ? t('settings.saved') : t('settings.save')}</span>
               </button>
             </div>
           </div>
 
-          {/* Card 2: Appearance & Experience (Theme, Language, Guided Tour) */}
-          <div className="card" data-tour="settings-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <div>
-              <div className="settings-card-header">
-                <div>
-                  <h3 className="card-title">{t('settings.appearance')}</h3>
-                  <p className="card-subtitle" style={{ margin: '2px 0 0' }}>
-                    {lang === 'bn' ? 'থিম, ভাষা ও প্ল্যাটফর্ম নির্দেশিকা' : 'Visual theme, language & guided platform tour'}
-                  </p>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-                {/* Theme Selector */}
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">{t('settings.theme')}</label>
-                  <div className="toggle-group">
-                    <button
-                      type="button"
-                      className={`toggle-option ${settings.theme === 'light' ? 'active' : ''}`}
-                      onClick={() => handleThemeChange('light')}
-                    >
-                      <Sun size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 5 }} />
-                      {t('settings.light')}
-                    </button>
-                    <button
-                      type="button"
-                      className={`toggle-option ${settings.theme === 'dark' ? 'active' : ''}`}
-                      onClick={() => handleThemeChange('dark')}
-                    >
-                      <Moon size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 5 }} />
-                      {t('settings.dark')}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Language Selector */}
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">{t('settings.language')}</label>
-                  <div className="toggle-group">
-                    <button
-                      type="button"
-                      className={`toggle-option ${lang === 'en' ? 'active' : ''}`}
-                      onClick={() => handleLanguageChange('en')}
-                    >
-                      🇬🇧 {t('settings.english')}
-                    </button>
-                    <button
-                      type="button"
-                      className={`toggle-option ${lang === 'bn' ? 'active' : ''}`}
-                      onClick={() => handleLanguageChange('bn')}
-                    >
-                      🇧🇩 {t('settings.bangla')}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Interactive Tour Section */}
-            <div style={{ marginTop: 'var(--space-5)', paddingTop: 'var(--space-4)', borderTop: '1px solid var(--color-border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-              <div>
-                <div style={{ fontSize: '12px', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-primary)' }}>
-                  {lang === 'bn' ? 'ইন্টারেক্টিভ প্ল্যাটফর্ম ট্যুর' : 'Interactive Platform Tour'}
-                </div>
-                <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: 2 }}>
-                  {lang === 'bn' ? 'মূল ফিচারসমূহ ঘুরে দেখুন' : 'Walk through key platform highlights & features'}
-                </div>
-              </div>
-              <button
-                type="button"
-                className="btn btn-sm btn-lime"
-                onClick={startTour}
-                style={{ gap: 6 }}
-              >
-                <Sparkles size={14} />
-                <span>{t('tour.start')}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* ========================================================
-            COLUMN 2: FINANCIAL DRIVING MODE & DATA / SYSTEM STORAGE
-            ======================================================== */}
-        <div className="settings-col">
-          {/* Card 1: Financial Driving Mode */}
+          {/* Card 2: Financial Driving Mode */}
           <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
             <div className="settings-card-header">
               <div>
@@ -561,6 +400,114 @@ export default function Settings() {
               })}
             </div>
           </div>
+        </div>
+
+        {/* ========================================================
+            COLUMN 2: APPEARANCE & CLOUD DATA MANAGEMENT
+            ======================================================== */}
+        <div className="settings-col">
+          {/* Card 1: Appearance & Experience (Theme, Language, Guided Tour) */}
+          <div className="card" data-tour="settings-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div>
+              <div className="settings-card-header">
+                <div>
+                  <h3 className="card-title">{t('settings.appearance')}</h3>
+                  <p className="card-subtitle" style={{ margin: '2px 0 0' }}>
+                    {lang === 'bn' ? 'থিম, ভাষা ও প্ল্যাটফর্ম নির্দেশিকা' : 'Visual theme, language & guided platform tour'}
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                {/* Theme Selector with Stroke */}
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ marginBottom: 8 }}>{t('settings.theme')}</label>
+                  <div className="stroke-toggle-grid">
+                    <button
+                      type="button"
+                      className={`stroke-toggle-card ${settings.theme === 'light' ? 'active' : ''}`}
+                      onClick={() => handleThemeChange('light')}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                        <Sun size={17} style={{ color: settings.theme === 'light' ? 'var(--color-primary-dark)' : 'var(--color-text-secondary)' }} />
+                        <span>{t('settings.light')}</span>
+                      </div>
+                      <div className="stroke-toggle-indicator">
+                        {settings.theme === 'light' && <Check size={11} strokeWidth={3} />}
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      className={`stroke-toggle-card ${settings.theme === 'dark' ? 'active' : ''}`}
+                      onClick={() => handleThemeChange('dark')}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                        <Moon size={17} style={{ color: settings.theme === 'dark' ? '#5ED21C' : 'var(--color-text-secondary)' }} />
+                        <span>{t('settings.dark')}</span>
+                      </div>
+                      <div className="stroke-toggle-indicator">
+                        {settings.theme === 'dark' && <Check size={11} strokeWidth={3} />}
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Language Selector with Stroke */}
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ marginBottom: 8 }}>{t('settings.language')}</label>
+                  <div className="stroke-toggle-grid">
+                    <button
+                      type="button"
+                      className={`stroke-toggle-card ${lang === 'en' ? 'active' : ''}`}
+                      onClick={() => handleLanguageChange('en')}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                        <span style={{ fontSize: '16px', lineHeight: 1 }}>🇬🇧</span>
+                        <span>{t('settings.english')}</span>
+                      </div>
+                      <div className="stroke-toggle-indicator">
+                        {lang === 'en' && <Check size={11} strokeWidth={3} />}
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      className={`stroke-toggle-card ${lang === 'bn' ? 'active' : ''}`}
+                      onClick={() => handleLanguageChange('bn')}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                        <span style={{ fontSize: '16px', lineHeight: 1 }}>🇧🇩</span>
+                        <span>{t('settings.bangla')}</span>
+                      </div>
+                      <div className="stroke-toggle-indicator">
+                        {lang === 'bn' && <Check size={11} strokeWidth={3} />}
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Interactive Tour Section */}
+            <div style={{ marginTop: 'var(--space-4)', paddingTop: 'var(--space-3)', borderTop: '1px solid var(--color-border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+              <div>
+                <div style={{ fontSize: '12px', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-primary)' }}>
+                  {lang === 'bn' ? 'ইন্টারেক্টিভ প্ল্যাটফর্ম ট্যুর' : 'Interactive Platform Tour'}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: 2 }}>
+                  {lang === 'bn' ? 'মূল ফিচারসমূহ ঘুরে দেখুন' : 'Walk through key platform highlights & features'}
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-sm btn-lime"
+                onClick={startTour}
+                style={{ gap: 6 }}
+              >
+                <Sparkles size={14} />
+                <span>{t('tour.start')}</span>
+              </button>
+            </div>
+          </div>
 
           {/* Card 2: Cloud Sync & Data Management */}
           <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
@@ -692,6 +639,7 @@ export default function Settings() {
           </div>
         </div>
       </div>
+
 
       {/* ========================================================
           ISOLATED DANGER ZONE CARD (System Data Reset Safety)

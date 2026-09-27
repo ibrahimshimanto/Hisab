@@ -3966,7 +3966,7 @@ body.modal-open .floating-capsule-nav {
 .settings-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 16px;
   width: 100%;
   align-items: stretch;
 }
@@ -3974,13 +3974,14 @@ body.modal-open .floating-capsule-nav {
 .settings-col {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px;
   min-width: 0;
   height: 100%;
 }
 
 .settings-col > .card {
   margin-bottom: 0;
+  border: 1.5px solid var(--card-inner-border, rgba(17, 20, 17, 0.14)) !important;
 }
 
 .settings-card-header {
@@ -4002,7 +4003,7 @@ body.modal-open .floating-capsule-nav {
   gap: 8px;
   padding: 4px 10px;
   background: var(--color-surface-secondary);
-  border: 1px solid var(--color-border);
+  border: 1.5px solid var(--card-inner-border, rgba(17, 20, 17, 0.14));
   border-radius: var(--radius-full);
 }
 
@@ -4020,13 +4021,146 @@ body.modal-open .floating-capsule-nav {
   border: 1px solid #5ED21C;
 }
 
+/* ============================================
+   SETTINGS STROKE-DIFFERENTIATED SWITCHERS
+   ============================================ */
+.stroke-toggle-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+}
+
+.stroke-toggle-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  height: 48px;
+  border-radius: var(--radius-lg);
+  border: 1.5px solid var(--card-inner-border, rgba(17, 20, 17, 0.16));
+  background: var(--color-surface, #FFFFFF);
+  color: var(--color-text-secondary);
+  font-size: 13.5px;
+  font-weight: var(--weight-medium);
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  user-select: none;
+}
+
+.stroke-toggle-card:hover {
+  border-color: var(--color-text-tertiary);
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover, #F8FAF7);
+}
+
+.stroke-toggle-card.active {
+  border: 2px solid #5ED21C !important;
+  background: rgba(94, 210, 28, 0.12) !important;
+  color: var(--color-text-primary) !important;
+  font-weight: var(--weight-bold);
+  box-shadow: 0 0 0 2px rgba(94, 210, 28, 0.22), 0 2px 8px rgba(94, 210, 28, 0.15);
+}
+
+[data-theme="dark"] .stroke-toggle-card {
+  background: #141814;
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #94A3B8;
+}
+
+[data-theme="dark"] .stroke-toggle-card:hover {
+  background: #1C221C;
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #F8FAFC;
+}
+
+[data-theme="dark"] .stroke-toggle-card.active {
+  border-color: #5ED21C !important;
+  background: rgba(94, 210, 28, 0.18) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 0 0 2px rgba(94, 210, 28, 0.28);
+}
+
+.stroke-toggle-indicator {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--card-inner-border, rgba(17, 20, 17, 0.25));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.stroke-toggle-card.active .stroke-toggle-indicator {
+  border-color: #5ED21C;
+  background: #5ED21C;
+  color: #111411;
+}
+
+[data-theme="dark"] .stroke-toggle-indicator {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* ============================================
+   PROFILE IDENTITY SECTION (CLEAN & MINIMAL)
+   ============================================ */
+.profile-identity-box {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-1) 0;
+}
+
+.profile-avatar-trigger-box {
+  position: relative;
+  cursor: pointer;
+  border-radius: 50%;
+  display: inline-flex;
+  transition: transform var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.profile-avatar-trigger-box:hover {
+  transform: scale(1.04);
+}
+
+.profile-avatar-camera-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #111411;
+  border: 1.5px solid #5ED21C;
+  color: #5ED21C;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  transition: all var(--transition-fast);
+}
+
+.profile-avatar-trigger-box:hover .profile-avatar-camera-badge {
+  background: #5ED21C;
+  color: #111411;
+}
+
+[data-theme="dark"] .profile-avatar-camera-badge {
+  background: #1C221C;
+}
+
 @media (max-width: 960px) {
   .settings-grid {
     grid-template-columns: 1fr;
-    gap: 10px;
+    gap: 14px;
   }
   .settings-col {
-    gap: 10px;
+    gap: 14px;
     height: auto;
   }
 }
