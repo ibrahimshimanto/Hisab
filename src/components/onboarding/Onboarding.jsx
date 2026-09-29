@@ -31,7 +31,7 @@ export default function Onboarding({ onComplete }) {
     startTour,
   } = useStore();
 
-  // Step 0: Language | Step 1: Sign In | Step 2: Profile Setup | Step 3: Success Screen
+  // Step 0: Language | Step 1: Sign In | Step 2: Profile Picture & Name
   // If user is already authenticated (e.g. returning from Google OAuth redirect),
   // jump straight to Step 2 (Profile Setup) so Language NEVER appears again after sign in.
   const [step, setStep] = useState(() => {
@@ -46,19 +46,17 @@ export default function Onboarding({ onComplete }) {
   const [authError, setAuthError] = useState('');
   const [authSuccess, setAuthSuccess] = useState('');
 
-  // Profile Step State
+  // Profile Step State (Pre-filled with Google / auth metadata, fully editable)
   const initialName = user?.user_metadata?.full_name || (user?.email && user.email !== 'guest@hisab.app' ? user.email.split('@')[0] : '');
   const [name, setName] = useState(initialName);
   const [nameError, setNameError] = useState('');
   const [profilePhoto, setProfilePhoto] = useState(user?.user_metadata?.avatar_url || '');
-
-  // Success Screen Progress (0 to 100%)
-  const [progress, setProgress] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
 
   const nameInputRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // Pre-fill name and avatar if user logs in via Google
+  // Pre-fill name and avatar if user logs in via Google OAuth
   useEffect(() => {
     if (user) {
       const googleName = user.user_metadata?.full_name || (user.email && user.email !== 'guest@hisab.app' ? user.email.split('@')[0] : '');
@@ -68,62 +66,12 @@ export default function Onboarding({ onComplete }) {
     }
   }, [user]);
 
-  // If user is already authenticated, jump to profile setup and never show language or sign in
+  // If user is authenticated, guarantee they are on Step 2 (Profile Setup) and never on Language or Sign In
   useEffect(() => {
     if (user && step < 2) {
       setStep(2);
     }
   }, [user, step]);
-
-  // Success Screen Timer & Background Provisioning (3.5 seconds)
-  useEffect(() => {
-    if (step === 3) {
-      // 1. Commit profile & starter accounts in background
-      const finalName = name.trim() || (lang === 'bn' ? 'ব্যবহারকারী' : 'User');
-      updateProfile({
-        name: finalName,
-        avatar: profilePhoto || '',
-      });
-      setFinancialMode('cruise');
-
-      // Only initialize starter account if user has no accounts yet
-      const currentAccounts = useStore.getState().accounts || [];
-      if (currentAccounts.length === 0) {
-        initializeOnboardingAccounts([
-          {
-            name: lang === 'bn' ? 'ক্যাশ ওয়ালেট' : 'Cash Wallet',
-            type: 'wallet',
-            balance: 0,
-          },
-        ]);
-      }
-      syncToCloud();
-
-      // 2. Animate progress bar over 3.5 seconds
-      const startTime = Date.now();
-      const duration = 3500;
-      const interval = setInterval(() => {
-        const elapsed = Date.now() - startTime;
-        const pct = Math.min(100, Math.round((elapsed / duration) * 100));
-        setProgress(pct);
-
-        if (pct >= 100) {
-          clearInterval(interval);
-          // Complete onboarding
-          completeOnboarding();
-          onComplete?.();
-          window.scrollTo(0, 0);
-
-          // Launch the platform auto-tour on the Dashboard after mount delay
-          setTimeout(() => {
-            startTour();
-          }, 450);
-        }
-      }, 50);
-
-      return () => clearInterval(interval);
-    }
-  }, [step]);
 
   const steps = [
     { icon: Globe, title: t('onboarding.selectLanguage') },
@@ -220,9 +168,10 @@ export default function Onboarding({ onComplete }) {
       setAuthSuccess(lang === 'bn' ? 'সফলভাবে সাইন ইন সম্পন্ন হয়েছে!' : 'Successfully signed in!');
       const userMeta = data?.user?.user_metadata;
       if (userMeta?.full_name && !name) setName(userMeta.full_name);
+      if (userMeta?.avatar_url && !profilePhoto) setProfilePhoto(userMeta.avatar_url);
       setTimeout(() => {
         setStep(2); // move to profile step
-      }, 500);
+      }, 400);
     } catch (err) {
       console.error('Verify OTP error:', err);
       setAuthError(err.message || 'Invalid or expired code');
@@ -231,7 +180,7 @@ export default function Onboarding({ onComplete }) {
     }
   };
 
-  // Handle Photo Upload from Device
+  // Handle Photo Upload from Device (with canvas resize to 256x256)
   const handlePhotoUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -270,6 +219,61 @@ export default function Onboarding({ onComplete }) {
     reader.readAsDataURL(file);
   };
 
+  // Save and Proceed: commits profile, starter accounts, cloud sync, completes onboarding and triggers auto-tour
+  const handleSaveAndProceed = async () => {
+    if (!name.trim()) {
+      setNameError(
+        lang === 'bn'
+          ? 'চালিয়ে যেতে আপনার নাম লেখা আবশ্যক।'
+          : 'Your name is required to continue.'
+      );
+      nameInputRef.current?.focus();
+      return;
+    }
+    setNameError('');
+    setIsSaving(true);
+
+    try {
+      const finalName = name.trim() || (lang === 'bn' ? 'ব্যবহারকারী' : 'User');
+      updateProfile({
+        name: finalName,
+        avatar: profilePhoto || '',
+      });
+      setFinancialMode('cruise');
+
+      // Initialize starter accounts if none exist
+      const currentAccounts = useStore.getState().accounts || [];
+      if (currentAccounts.length === 0) {
+        initializeOnboardingAccounts([
+          {
+            name: lang === 'bn' ? 'ক্যাশ ওয়ালেট' : 'Cash Wallet',
+            type: 'wallet',
+            balance: 0,
+          },
+        ]);
+      }
+
+      await syncToCloud();
+      completeOnboarding();
+      onComplete?.();
+      window.scrollTo(0, 0);
+
+      // Launch the platform auto-tour on Dashboard
+      setTimeout(() => {
+        startTour();
+      }, 350);
+    } catch (err) {
+      console.error('Error completing profile setup:', err);
+      completeOnboarding();
+      onComplete?.();
+      setTimeout(() => {
+        startTour();
+      }, 350);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleNextStep = () => {
     // Step 0: Language -> advance to Step 1 (Sign In)
     if (step === 0) {
@@ -291,19 +295,9 @@ export default function Onboarding({ onComplete }) {
       return;
     }
 
-    // Step 2: Profile Step (Validate name) -> advance to Step 3 (Success Screen)
+    // Step 2: Profile Step -> Save & Proceed
     if (step === 2) {
-      if (!name.trim()) {
-        setNameError(
-          lang === 'bn'
-            ? 'চালিয়ে যেতে আপনার নাম লেখা আবশ্যক।'
-            : 'Your name is required to continue.'
-        );
-        nameInputRef.current?.focus();
-        return;
-      }
-      setNameError('');
-      setStep(3); // Start success screen & background provisioning
+      handleSaveAndProceed();
     }
   };
 
@@ -350,23 +344,21 @@ export default function Onboarding({ onComplete }) {
           </p>
         </div>
 
-        {/* Step Indicator Progress Bar (Hidden during success screen) */}
-        {step < 3 && (
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 'var(--space-4)' }}>
-            {steps.map((s, i) => (
-              <div
-                key={i}
-                style={{
-                  width: i === step ? 40 : 10,
-                  height: 7,
-                  borderRadius: 'var(--radius-full)',
-                  background: i <= step ? '#5ED21C' : 'var(--color-border)',
-                  transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-                }}
-              />
-            ))}
-          </div>
-        )}
+        {/* Step Indicator Progress Bar (3 steps: Language, Sign In, Profile) */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 'var(--space-4)' }}>
+          {steps.map((s, i) => (
+            <div
+              key={i}
+              style={{
+                width: i === step ? 40 : 10,
+                height: 7,
+                borderRadius: 'var(--radius-full)',
+                background: i <= step ? '#5ED21C' : 'var(--color-border)',
+                transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+              }}
+            />
+          ))}
+        </div>
 
         {/* Main Step Container Card */}
         <div className="card" style={{
@@ -374,35 +366,33 @@ export default function Onboarding({ onComplete }) {
           boxShadow: '0 12px 36px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04)',
           border: '1px solid var(--glass-border)',
         }}>
-          {/* Step Header (Hidden during success screen) */}
-          {step < 3 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-              <div style={{
-                width: 38,
-                height: 38,
-                borderRadius: 'var(--radius-md)',
-                background: 'rgba(94, 210, 28, 0.15)',
-                color: '#207208',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}>
-                {(() => { const Icon = steps[step].icon; return <Icon size={18} />; })()}
-              </div>
-              <div>
-                <h2 style={{ fontSize: '16px', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-primary)', margin: 0 }}>
-                  {steps[step].title}
-                </h2>
-                <p style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', margin: '2px 0 0' }}>
-                  {t('onboarding.step')} {step + 1} {t('onboarding.of')} {steps.length}
-                </p>
-              </div>
+          {/* Step Header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+            <div style={{
+              width: 38,
+              height: 38,
+              borderRadius: 'var(--radius-md)',
+              background: 'rgba(94, 210, 28, 0.15)',
+              color: '#207208',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              {(() => { const Icon = steps[step].icon; return <Icon size={18} />; })()}
             </div>
-          )}
+            <div>
+              <h2 style={{ fontSize: '16px', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-primary)', margin: 0 }}>
+                {steps[step].title}
+              </h2>
+              <p style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', margin: '2px 0 0' }}>
+                {t('onboarding.step')} {step + 1} {t('onboarding.of')} {steps.length}
+              </p>
+            </div>
+          </div>
 
           {/* ==========================================================
-              STEP 0: LANGUAGE SELECTION (First Step; Never reappears once authenticated)
+              STEP 0: LANGUAGE SELECTION (First & Only Time)
               ========================================================== */}
           {step === 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -454,11 +444,11 @@ export default function Onboarding({ onComplete }) {
           )}
 
           {/* ==========================================================
-              STEP 1: GOOGLE & EMAIL SIGN IN (Strictly Required - Zero Guest Options)
+              STEP 1: GOOGLE & EMAIL SIGN IN (Strictly Required)
               ========================================================== */}
           {step === 1 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {/* Authenticated State Display */}
+              {/* Authenticated State Display (if user is signed in) */}
               {user ? (
                 <div style={{
                   padding: '18px 16px',
@@ -513,7 +503,7 @@ export default function Onboarding({ onComplete }) {
                   <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: 0 }}>
                     {lang === 'bn'
                       ? 'আপনার অ্যাকাউন্টটি সফলভাবে সংযুক্ত রয়েছে। নিচের বাটনে ক্লিক করে প্রোফাইল সাজান।'
-                      : 'Your account is linked. Click Next below to set up your profile details.'}
+                      : 'Your account is linked. Click Next below to edit your name and profile picture.'}
                   </p>
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
                     <button
@@ -724,10 +714,19 @@ export default function Onboarding({ onComplete }) {
           )}
 
           {/* ==========================================================
-              STEP 2: PROFILE SETUP (PHOTO UPLOAD & NAME)
+              STEP 2: PROFILE SETUP (PHOTO UPLOAD & EDITABLE NAME)
+              User is placed here after Google / Email authentication!
               ========================================================== */}
           {step === 2 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <div style={{ textAlign: 'center', marginBottom: 2 }}>
+                <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', margin: 0 }}>
+                  {lang === 'bn'
+                    ? 'আপনার গুগল তথ্য প্রি-ফিল করা হয়েছে। প্রয়োজনে ছবি বা নাম পরিবর্তন করতে পারেন:'
+                    : 'Your details were imported from Google. Review and edit your profile photo and name:'}
+                </p>
+              </div>
+
               {/* Profile Photo Upload Center */}
               <div style={{
                 display: 'flex',
@@ -735,7 +734,7 @@ export default function Onboarding({ onComplete }) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 12,
-                padding: '12px 0 4px',
+                padding: '4px 0',
               }}>
                 {/* Hidden File Input */}
                 <input
@@ -760,8 +759,8 @@ export default function Onboarding({ onComplete }) {
                   title={lang === 'bn' ? 'ছবি পরিবর্তন করতে ক্লিক করুন' : 'Click to change photo'}
                   style={{
                     position: 'relative',
-                    width: 90,
-                    height: 90,
+                    width: 96,
+                    height: 96,
                     borderRadius: '50%',
                     cursor: 'pointer',
                     outline: 'none',
@@ -794,11 +793,11 @@ export default function Onboarding({ onComplete }) {
                       alignItems: 'center',
                       justifyContent: 'center',
                       color: '#5ED21C',
-                      fontSize: '32px',
+                      fontSize: '34px',
                       fontWeight: 'var(--weight-extrabold)',
                       boxShadow: '0 4px 14px rgba(0, 0, 0, 0.15)',
                     }}>
-                      {name ? name.charAt(0).toUpperCase() : <User size={38} />}
+                      {name ? name.charAt(0).toUpperCase() : <User size={40} />}
                     </div>
                   )}
 
@@ -807,8 +806,8 @@ export default function Onboarding({ onComplete }) {
                     position: 'absolute',
                     bottom: 0,
                     right: 0,
-                    width: 28,
-                    height: 28,
+                    width: 30,
+                    height: 30,
                     borderRadius: '50%',
                     background: '#111411',
                     border: '2px solid #5ED21C',
@@ -818,7 +817,7 @@ export default function Onboarding({ onComplete }) {
                     justifyContent: 'center',
                     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
                   }}>
-                    <Camera size={14} />
+                    <Camera size={15} />
                   </div>
                 </div>
 
@@ -830,9 +829,9 @@ export default function Onboarding({ onComplete }) {
                     style={{
                       background: 'none',
                       border: 'none',
-                      color: 'var(--color-text-primary)',
+                      color: '#207208',
                       fontSize: '13px',
-                      fontWeight: 'var(--weight-semibold)',
+                      fontWeight: 'var(--weight-bold)',
                       cursor: 'pointer',
                       padding: 0,
                     }}
@@ -852,7 +851,7 @@ export default function Onboarding({ onComplete }) {
                           color: 'var(--color-expense)',
                           fontSize: '11px',
                           cursor: 'pointer',
-                          padding: '2px 0 0',
+                          padding: '3px 0 0',
                         }}
                       >
                         {lang === 'bn' ? 'ছবি মুছুন' : 'Remove Photo'}
@@ -879,12 +878,13 @@ export default function Onboarding({ onComplete }) {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
-                      handleNextStep();
+                      handleSaveAndProceed();
                     }
                   }}
                   placeholder={lang === 'bn' ? 'যেমন: ইব্রাহিম' : 'e.g. Ibrahim'}
                   style={{
-                    height: 44,
+                    height: 46,
+                    fontSize: '15px',
                     borderColor: nameError ? '#EF4444' : undefined,
                     boxShadow: nameError ? '0 0 0 3px rgba(239, 68, 68, 0.2)' : undefined,
                   }}
@@ -908,171 +908,58 @@ export default function Onboarding({ onComplete }) {
               </div>
             </div>
           )}
-
-          {/* ==========================================================
-              STEP 3: SUCCESS & WORKSPACE PREPARATION SCREEN (3.5 SECONDS)
-              ========================================================== */}
-          {step === 3 && (
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '24px 10px',
-              textAlign: 'center',
-              gap: 20,
-            }}>
-              {/* Animated Glowing Success Badge */}
-              <div style={{
-                position: 'relative',
-                width: 76,
-                height: 76,
-                borderRadius: '50%',
-                background: 'rgba(94, 210, 28, 0.15)',
-                border: '2px solid #5ED21C',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#207208',
-                boxShadow: '0 0 30px rgba(94, 210, 28, 0.35)',
-                animation: 'pulse 1.8s infinite ease-in-out',
-              }}>
-                <Check size={38} strokeWidth={3} />
-              </div>
-
-              {/* Title & Description */}
-              <div>
-                <h2 style={{
-                  fontSize: '20px',
-                  fontWeight: 'var(--weight-extrabold)',
-                  color: 'var(--color-text-primary)',
-                  margin: 0,
-                  letterSpacing: '-0.02em',
-                }}>
-                  {lang === 'bn' ? 'আপনার হিসাব প্রস্তুত হচ্ছে...' : 'Setting Up Your Workspace...'}
-                </h2>
-                <p style={{
-                  fontSize: '13px',
-                  color: 'var(--color-text-secondary)',
-                  margin: '8px auto 0',
-                  maxWidth: 360,
-                  lineHeight: 1.5,
-                }}>
-                  {lang === 'bn'
-                    ? 'ডাটাবেজ সিঙ্ক, পার্সোনাল ফাইন্যান্স ইঞ্জিন এবং ক্লাউড এনক্রিপশন প্রস্তুত হচ্ছে।'
-                    : 'Configuring encrypted storage, calibrating financial engine, and linking cloud database.'}
-                </p>
-              </div>
-
-              {/* Progress Bar Container */}
-              <div style={{ width: '100%', maxWidth: 360, marginTop: 4 }}>
-                <div style={{
-                  width: '100%',
-                  height: 8,
-                  borderRadius: 'var(--radius-full)',
-                  background: 'var(--color-border)',
-                  overflow: 'hidden',
-                }}>
-                  <div style={{
-                    width: `${progress}%`,
-                    height: '100%',
-                    background: 'linear-gradient(90deg, #5ED21C 0%, #207208 100%)',
-                    borderRadius: 'var(--radius-full)',
-                    transition: 'width 0.1s linear',
-                    boxShadow: '0 0 10px rgba(94, 210, 28, 0.5)',
-                  }} />
-                </div>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  fontSize: '11px',
-                  color: 'var(--color-text-tertiary)',
-                  marginTop: 6,
-                  fontWeight: 'var(--weight-semibold)',
-                }}>
-                  <span>{lang === 'bn' ? 'অপেক্ষা করুন...' : 'Please wait...'}</span>
-                  <span>{progress}%</span>
-                </div>
-              </div>
-
-              {/* Sequential Checklist Badges */}
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 8,
-                width: '100%',
-                maxWidth: 320,
-                textAlign: 'left',
-                fontSize: '12px',
-                color: 'var(--color-text-secondary)',
-                marginTop: 4,
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: progress > 20 ? 1 : 0.4 }}>
-                  <CheckCircle2 size={14} style={{ color: '#5ED21C' }} />
-                  <span>{lang === 'bn' ? 'অ্যাকাউন্ট ভেরিফিকেশন সম্পন্ন' : 'Account authenticated & verified'}</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: progress > 55 ? 1 : 0.4 }}>
-                  <CheckCircle2 size={14} style={{ color: '#5ED21C' }} />
-                  <span>{lang === 'bn' ? 'এনক্রিপ্টেড লোকাল ডাটাবেজ সক্রিয়' : 'Encrypted storage initialized'}</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: progress > 85 ? 1 : 0.4 }}>
-                  <CheckCircle2 size={14} style={{ color: '#5ED21C' }} />
-                  <span>{lang === 'bn' ? 'আর্থিক ড্রাইভিং মোড প্রস্তুত' : 'Financial engine calibrated'}</span>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Navigation & Action Buttons (Hidden during success screen) */}
-        {step < 3 && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginTop: 16,
-            gap: 12,
-          }}>
-            {/* Back button (Only available on step 1 before signing in) */}
-            {step === 1 && !user ? (
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => setStep(0)}
-                style={{ fontSize: '13px' }}
-              >
-                {t('onboarding.back')}
-              </button>
-            ) : <div />}
+        {/* Navigation & Action Buttons */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginTop: 16,
+          gap: 12,
+        }}>
+          {/* Back button (Only available on step 1 before signing in) */}
+          {step === 1 && !user ? (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setStep(0)}
+              style={{ fontSize: '13px' }}
+            >
+              {t('onboarding.back')}
+            </button>
+          ) : <div />}
 
-            {/* Next / Continue Button */}
-            {/* On step 1, only show if user has authenticated */}
-            {step === 1 && !user ? null : (
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleNextStep}
-                style={{
-                  height: 46,
-                  padding: '0 24px',
-                  fontSize: '14px',
-                  fontWeight: 'var(--weight-bold)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  cursor: 'pointer',
-                }}
-              >
-                <span>
-                  {step === 2
-                    ? (lang === 'bn' ? 'সম্পন্ন করুন' : 'Finish Setup')
-                    : t('onboarding.next')}
-                </span>
-                <ArrowRight size={16} />
-              </button>
-            )}
-          </div>
-        )}
+          {/* Next / Save and Proceed Button */}
+          {step === 1 && !user ? null : (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleNextStep}
+              disabled={isSaving}
+              style={{
+                height: 46,
+                padding: '0 26px',
+                fontSize: '14px',
+                fontWeight: 'var(--weight-bold)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                cursor: isSaving ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {isSaving ? (
+                <RefreshCw size={16} className="animate-spin" />
+              ) : null}
+              <span>
+                {step === 2
+                  ? (lang === 'bn' ? 'সংরক্ষণ করুন ও এগিয়ে যান' : 'Save & Proceed')
+                  : t('onboarding.next')}
+              </span>
+              {!isSaving && <ArrowRight size={16} />}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

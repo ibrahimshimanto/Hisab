@@ -65,8 +65,8 @@ function AppContent() {
     );
   }
 
-  // 1. If onboarding not completed yet: Show Onboarding directly
-  if (!onboardingComplete) {
+  // 1. If not authenticated or onboarding not completed yet: Show Onboarding directly
+  if (!user || !onboardingComplete) {
     return <Onboarding />;
   }
 

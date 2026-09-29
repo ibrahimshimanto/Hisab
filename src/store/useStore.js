@@ -542,9 +542,9 @@ const useStore = create((set, get) => ({
         budgets: cloudData.budgets?.length > 0 ? cloudData.budgets : state.budgets,
         savingsGoals: cloudData.savingsGoals?.length > 0 ? cloudData.savingsGoals : state.savingsGoals,
         recurringBills: cloudData.recurringBills?.length > 0 ? cloudData.recurringBills : state.recurringBills,
-        onboardingComplete: cloudData.onboardingComplete !== undefined
-          ? Boolean(cloudData.onboardingComplete)
-          : state.onboardingComplete,
+        onboardingComplete: state.onboardingComplete
+          ? (cloudData.onboardingComplete !== undefined ? Boolean(cloudData.onboardingComplete) : state.onboardingComplete)
+          : false,
       };
       setTimeout(() => saveToStorage(get()), 0);
       return newState;
@@ -590,7 +590,8 @@ const useStore = create((set, get) => ({
     } catch {
       // ignore
     }
-    set({ user: null, session: null, syncStatus: 'synced' });
+    set({ user: null, session: null, onboardingComplete: false, syncStatus: 'synced' });
+    setTimeout(() => saveToStorage(get()), 0);
   },
 
 
