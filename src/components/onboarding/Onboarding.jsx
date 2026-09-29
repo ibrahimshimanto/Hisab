@@ -216,6 +216,15 @@ export default function Onboarding({ onComplete }) {
   };
 
   const handleNextStep = () => {
+    // Step 1 is Authentication Step (Required)
+    if (step === 1 && !user) {
+      setAuthError(
+        lang === 'bn'
+          ? 'চালিয়ে যেতে অনুগ্রহ করে গুগল বা ইমেইল দিয়ে সাইন ইন করুন।'
+          : 'Please sign in with Google or Email to continue.'
+      );
+      return;
+    }
     // Step 2 is Profile Step
     if (step === 2) {
       if (!name.trim()) {
@@ -730,27 +739,7 @@ export default function Onboarding({ onComplete }) {
                     </div>
                   )}
 
-                  {/* Continue as Guest option */}
-                  <div style={{ textAlign: 'center', paddingTop: 6 }}>
-                    <button
-                      type="button"
-                      onClick={() => setStep(2)}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--color-text-tertiary)',
-                        fontSize: '12.5px',
-                        cursor: 'pointer',
-                        padding: '6px 12px',
-                        borderRadius: 'var(--radius-md)',
-                        transition: 'all var(--transition-fast)',
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text-primary)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-tertiary)'; }}
-                    >
-                      {lang === 'bn' ? 'সাইন ইন ছাড়া চালিয়ে যান (গেস্ট মোড) →' : 'Continue as Guest (Offline Mode) →'}
-                    </button>
-                  </div>
+
                 </div>
               )}
             </div>
@@ -1200,23 +1189,25 @@ export default function Onboarding({ onComplete }) {
           ) : <div />}
 
           {step < steps.length - 1 ? (
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={handleNextStep}
-              style={{
-                height: 46,
-                padding: '0 24px',
-                fontSize: '14px',
-                fontWeight: 'var(--weight-bold)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-              }}
-            >
-              <span>{t('onboarding.next')}</span>
-              <ArrowRight size={16} />
-            </button>
+            step === 1 && !user ? null : (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleNextStep}
+                style={{
+                  height: 46,
+                  padding: '0 24px',
+                  fontSize: '14px',
+                  fontWeight: 'var(--weight-bold)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <span>{t('onboarding.next')}</span>
+                <ArrowRight size={16} />
+              </button>
+            )
           ) : (
             /* Step 2 Finish Button */
             <button
