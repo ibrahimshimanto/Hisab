@@ -27,6 +27,7 @@ import {
   saveCustomSupabaseConfig,
   clearCustomSupabaseConfig,
 } from '../../lib/supabase.js';
+import { getMailProvider } from '../../lib/mailProvider.js';
 
 export default function AuthModal() {
   const { lang, t } = useTranslation();
@@ -43,12 +44,36 @@ export default function AuthModal() {
   } = useStore();
 
   const [email, setEmail] = useState('');
-  const [otpCode, setOtpCode] = useState('');
-  const [step, setStep] = useState('input'); // 'input' | 'otp' | 'success'
+  const [step, setStep] = useState('input'); // 'input' | 'sent' | 'success'
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [showConfig, setShowConfig] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  // Resend countdown timer
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
+
+  // If user becomes authenticated while waiting for magic link, auto-advance
+  useEffect(() => {
+    if (user && step === 'sent') {
+      setStep('success');
+      setSuccessMsg(
+        lang === 'bn'
+          ? 'সফলভাবে লগইন সম্পন্ন হয়েছে! আপনার ডেটা ক্লাউডের সাথে সিঙ্ক হচ্ছে...'
+          : 'Successfully signed in! Your data is syncing to the cloud...'
+      );
+      setTimeout(() => {
+        handleClose();
+      }, 1400);
+    }
+  }, [user, step]);
 
   // Custom Supabase Config fields
   const [customUrl, setCustomUrl] = useState('');
@@ -104,7 +129,7 @@ export default function AuthModal() {
     }
   };
 
-  const handleSendOtp = async (e) => {
+  const handleSendMagicLink = async (e) => {
     e?.preventDefault();
     if (!email || !email.includes('@')) {
       setErrorMsg(
@@ -137,54 +162,16 @@ export default function AuthModal() {
       });
       if (error) throw error;
 
-      setStep('otp');
+      setStep('sent');
+      setResendCooldown(30);
       setSuccessMsg(
         lang === 'bn'
-          ? `${email} এ একটি ওয়ান-টাইম ভেরিফিকেশন কোড পাঠানো হয়েছে!`
-          : `A one-time verification code has been sent to ${email}!`
+          ? `${email} এ ১-ক্লিক সাইন ইন লিংক পাঠানো হয়েছে!`
+          : `Magic sign-in link sent to ${email}!`
       );
     } catch (err) {
-      console.error('Send OTP error:', err);
-      setErrorMsg(err.message || 'Failed to send login code');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async (e) => {
-    e?.preventDefault();
-    if (!otpCode || otpCode.trim().length < 6) {
-      setErrorMsg(
-        lang === 'bn'
-          ? 'অনুগ্রহ করে ৬-সংখ্যার কোডটি প্রবেশ করান।'
-          : 'Please enter the 6-digit code.'
-      );
-      return;
-    }
-
-    const supabase = getSupabase();
-    setLoading(true);
-    setErrorMsg('');
-    try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        email: email.trim(),
-        token: otpCode.trim(),
-        type: 'email',
-      });
-      if (error) throw error;
-
-      setStep('success');
-      setSuccessMsg(
-        lang === 'bn'
-          ? 'সফলভাবে লগইন সম্পন্ন হয়েছে! আপনার ডেটা ক্লাউডের সাথে সিঙ্ক হচ্ছে...'
-          : 'Successfully signed in! Your data is syncing to the cloud...'
-      );
-      setTimeout(() => {
-        handleClose();
-      }, 1500);
-    } catch (err) {
-      console.error('Verify OTP error:', err);
-      setErrorMsg(err.message || 'Invalid verification code');
+      console.error('Send Magic Link error:', err);
+      setErrorMsg(err.message || 'Failed to send login link');
     } finally {
       setLoading(false);
     }
@@ -636,14 +623,14 @@ export default function AuthModal() {
               >
                 <div style={{ flex: 1, height: 1, backgroundColor: 'var(--color-border)' }} />
                 <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  {lang === 'bn' ? 'অথবা ইমেল ওটিপি' : 'or email magic code'}
+                  {lang === 'bn' ? 'অথবা ১-ক্লিক ম্যাজিক লিংক' : 'or 1-click magic link'}
                 </span>
                 <div style={{ flex: 1, height: 1, backgroundColor: 'var(--color-border)' }} />
               </div>
 
-              {/* Email OTP Flow */}
+              {/* 1-Click Magic Link Flow */}
               {step === 'input' ? (
-                <form onSubmit={handleSendOtp} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <form onSubmit={handleSendMagicLink} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label" style={{ fontSize: '12px' }}>
                       {lang === 'bn' ? 'আপনার ইমেল ঠিকানা' : 'Email Address'}
@@ -673,7 +660,7 @@ export default function AuthModal() {
 
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || !email.trim()}
                     className="btn btn-primary"
                     style={{
                       height: 44,
@@ -683,76 +670,205 @@ export default function AuthModal() {
                       gap: 8,
                     }}
                   >
-                    <span>{loading ? (lang === 'bn' ? 'কোড পাঠানো হচ্ছে...' : 'Sending code...') : (lang === 'bn' ? 'লগইন কোড পাঠান' : 'Send Login Code')}</span>
-                    <ArrowRight size={16} />
+                    {loading ? (
+                      <RefreshCw size={16} className="animate-spin" />
+                    ) : (
+                      <Sparkles size={16} />
+                    )}
+                    <span>{loading ? (lang === 'bn' ? 'পাঠানো হচ্ছে...' : 'Sending link...') : (lang === 'bn' ? 'ম্যাজিক লিংক পাঠান' : 'Send Magic Link')}</span>
                   </button>
                 </form>
               ) : (
-                <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <label className="form-label" style={{ fontSize: '12px' }}>
-                        {lang === 'bn' ? '৬-সংখ্যার কোড প্রবেশ করান' : 'Enter 6-Digit Code'}
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setStep('input')}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: 'var(--color-primary)',
-                          fontSize: '11px',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {lang === 'bn' ? 'ইমেল পরিবর্তন' : 'Change Email'}
-                      </button>
-                    </div>
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        className="form-input"
-                        type="text"
-                        required
-                        maxLength={8}
-                        value={otpCode}
-                        onChange={(e) => setOtpCode(e.target.value)}
-                        placeholder="123456"
-                        style={{
-                          paddingLeft: 38,
-                          letterSpacing: '0.25em',
-                          fontSize: '16px',
-                          fontWeight: 'bold',
-                        }}
-                      />
-                      <KeyRound
-                        size={16}
-                        style={{
-                          position: 'absolute',
-                          left: 12,
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          color: 'var(--color-text-tertiary)',
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="btn btn-primary"
+                /* Magic Link Confirmation Card */
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    textAlign: 'center',
+                    gap: 12,
+                    padding: '16px 14px',
+                    borderRadius: 'var(--radius-lg)',
+                    background: 'var(--color-surface)',
+                    border: '1.5px solid rgba(94, 210, 28, 0.25)',
+                    boxShadow: '0 4px 20px rgba(94, 210, 28, 0.08)',
+                    animation: 'fadeIn 0.25s ease-out',
+                  }}
+                >
+                  {/* Mail Icon Badge */}
+                  <div
                     style={{
-                      height: 44,
+                      width: 46,
+                      height: 46,
+                      borderRadius: '50%',
+                      background: 'rgba(94, 210, 28, 0.12)',
+                      border: '1.5px solid rgba(94, 210, 28, 0.35)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: 8,
+                      color: '#5ED21C',
+                      boxShadow: '0 0 16px rgba(94, 210, 28, 0.2)',
                     }}
                   >
-                    <span>{loading ? (lang === 'bn' ? 'যাচাই করা হচ্ছে...' : 'Verifying...') : (lang === 'bn' ? 'কোড যাচাই ও লগইন' : 'Verify & Sign In')}</span>
-                    <CheckCircle2 size={16} />
-                  </button>
-                </form>
+                    <Mail size={22} />
+                  </div>
+
+                  {/* Header & Email Pill */}
+                  <div>
+                    <h4 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: 'var(--weight-semibold)', color: 'var(--color-text-primary)' }}>
+                      {lang === 'bn' ? 'আপনার ইনবক্স চেক করুন!' : 'Check your inbox!'}
+                    </h4>
+                    <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>
+                      {lang === 'bn' ? 'আমরা একটি ১-ক্লিক সাইন ইন লিংক পাঠিয়েছি:' : 'We sent a 1-click sign-in link to:'}
+                    </p>
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        marginTop: 6,
+                        padding: '3px 12px',
+                        borderRadius: '999px',
+                        background: 'var(--color-bg-secondary, rgba(255, 255, 255, 0.05))',
+                        border: '1px solid var(--color-border)',
+                        fontSize: '12px',
+                        fontWeight: 'var(--weight-semibold)',
+                        color: 'var(--color-text-primary)',
+                        maxWidth: '100%',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      <Mail size={12} style={{ color: '#5ED21C', flexShrink: 0 }} />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{email}</span>
+                    </div>
+                  </div>
+
+                  {/* Direct Mail Inbox Button */}
+                  {(() => {
+                    const provider = getMailProvider(email);
+                    if (!provider) return null;
+                    return (
+                      <a
+                        href={provider.url}
+                        target={provider.isWebmail ? '_blank' : '_self'}
+                        rel="noopener noreferrer"
+                        className="btn btn-primary"
+                        style={{
+                          width: '100%',
+                          height: 44,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 8,
+                          fontSize: '13.5px',
+                          fontWeight: 'var(--weight-semibold)',
+                          textDecoration: 'none',
+                          boxShadow: '0 2px 10px rgba(94, 210, 28, 0.25)',
+                        }}
+                      >
+                        <span>
+                          {lang === 'bn'
+                            ? `${provider.name} খুলুন`
+                            : `Open ${provider.name}`}
+                        </span>
+                        <ExternalLink size={15} />
+                      </a>
+                    );
+                  })()}
+
+                  {/* Live Listener Pulse Status */}
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '6px 12px',
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'rgba(94, 210, 28, 0.08)',
+                      fontSize: '11.5px',
+                      color: 'var(--color-text-secondary)',
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        background: '#5ED21C',
+                        display: 'inline-block',
+                        boxShadow: '0 0 8px #5ED21C',
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span>
+                      {lang === 'bn'
+                        ? 'লিংক ক্লিক করলেই অটোমেটিক লগইন হয়ে যাবে'
+                        : 'Clicking the link in your email automatically signs you in'}
+                    </span>
+                  </div>
+
+                  {/* Actions Row: Resend & Change Email */}
+                  <div
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      fontSize: '12px',
+                      paddingTop: 8,
+                      borderTop: '1px solid var(--color-border-light)',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStep('input');
+                        setErrorMsg('');
+                        setSuccessMsg('');
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--color-text-tertiary)',
+                        cursor: 'pointer',
+                        padding: 0,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                      }}
+                    >
+                      {lang === 'bn' ? '← অন্য ইমেল' : '← Change email'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleSendMagicLink}
+                      disabled={loading || resendCooldown > 0}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: resendCooldown > 0 ? 'var(--color-text-tertiary)' : '#5ED21C',
+                        cursor: resendCooldown > 0 ? 'default' : 'pointer',
+                        padding: 0,
+                        fontWeight: 'var(--weight-medium)',
+                      }}
+                    >
+                      {resendCooldown > 0
+                        ? (lang === 'bn' ? `আবার পাঠান (${resendCooldown}s)` : `Resend link (${resendCooldown}s)`)
+                        : (lang === 'bn' ? 'লিংক আবার পাঠান' : 'Resend link')}
+                    </button>
+                  </div>
+
+                  {/* Deliverability Tip */}
+                  <p style={{ margin: 0, fontSize: '11px', color: 'var(--color-text-tertiary)', lineHeight: 1.4 }}>
+                    {lang === 'bn'
+                      ? '💡 ইমেইল না পেলে Spam অথবা Promotions ফোল্ডার চেক করুন।'
+                      : '💡 Can\'t find the email? Check your Spam or Promotions folder.'}
+                  </p>
+                </div>
               )}
             </div>
           )}
