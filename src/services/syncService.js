@@ -206,6 +206,41 @@ export function formatRecurringBillFromDb(row) {
 }
 
 /**
+ * Mock data identifiers to filter and purge for all users
+ */
+export const MOCK_SAVINGS_IDS = ['goal-dps-1', 'goal-fdr-1', 'goal-emergency-1', 'goal-macbook-1'];
+export const MOCK_SAVINGS_NAMES = ['bKash Smart DPS 5K', 'City Bank High-Yield FDR', '6-Month Emergency Reserve', 'MacBook Pro M3 Max'];
+export const MOCK_BILL_IDS = ['rec-rent', 'rec-internet', 'rec-electricity', 'rec-netflix', 'rb-2'];
+export const MOCK_BILL_NAMES = ['Home Rent', 'Broadband Internet', 'Electricity Bill', 'Netflix Subscription'];
+
+/**
+ * Purge any mock/dummy savings goals, recurring bills, and generated mock transactions
+ * from Supabase for a specific user ID.
+ */
+export async function purgeUserMockDataFromCloud(userId = null) {
+  const supabase = getSupabase();
+  if (!supabase) return { success: false, error: 'Supabase client missing' };
+
+  const effectiveUserId = userId || getOrCreateClientUserId();
+  if (!effectiveUserId) return { success: false, error: 'User ID missing' };
+
+  try {
+    await Promise.allSettled([
+      supabase.from('savings_goals').delete().eq('user_id', effectiveUserId).in('id', MOCK_SAVINGS_IDS),
+      supabase.from('savings_goals').delete().eq('user_id', effectiveUserId).in('name', MOCK_SAVINGS_NAMES),
+      supabase.from('recurring_bills').delete().eq('user_id', effectiveUserId).in('id', MOCK_BILL_IDS),
+      supabase.from('recurring_bills').delete().eq('user_id', effectiveUserId).in('name', MOCK_BILL_NAMES),
+      supabase.from('transactions').delete().eq('user_id', effectiveUserId).in('recurring_bill_id', MOCK_BILL_IDS),
+      supabase.from('transactions').delete().eq('user_id', effectiveUserId).eq('id', '1790703873975-4ntdzkc'),
+    ]);
+    return { success: true };
+  } catch (err) {
+    console.warn('purgeUserMockDataFromCloud error:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
  * Fetch all cloud records strictly for a specific user ID.
  * Guarantees zero leakage of other users' accounts or data.
  */
@@ -253,10 +288,16 @@ export async function fetchCloudData(userId = null) {
 
     const profileData = profileRes?.data || {};
     const accounts = (accountsRes.data || []).map(formatAccountFromDb);
-    const transactions = (transactionsRes.data || []).map(formatTransactionFromDb);
+    const transactions = (transactionsRes.data || [])
+      .map(formatTransactionFromDb)
+      .filter((t) => !MOCK_BILL_IDS.includes(t.recurringBillId) && t.id !== '1790703873975-4ntdzkc');
     const budgets = (budgetsRes.data || []).map(formatBudgetFromDb);
-    const savingsGoals = (savingsRes.data || []).map(formatSavingsGoalFromDb);
-    const recurringBills = (billsRes.data || []).map(formatRecurringBillFromDb);
+    const savingsGoals = (savingsRes.data || [])
+      .map(formatSavingsGoalFromDb)
+      .filter((g) => !MOCK_SAVINGS_IDS.includes(g.id) && !MOCK_SAVINGS_NAMES.includes(g.name));
+    const recurringBills = (billsRes.data || [])
+      .map(formatRecurringBillFromDb)
+      .filter((b) => !MOCK_BILL_IDS.includes(b.id) && !MOCK_BILL_NAMES.includes(b.name));
 
     return {
       success: true,
@@ -330,8 +371,13 @@ export async function uploadLocalDataToCloud(userId = null, state) {
 
     // 3. Transactions
     if (state.transactions && state.transactions.length > 0) {
-      const dbTxns = state.transactions.map((t) => formatTransactionForDb(effectiveUserId, t));
-      await supabase.from('transactions').upsert(dbTxns, { onConflict: 'id' });
+      const cleanTxns = state.transactions.filter(
+        (t) => !MOCK_BILL_IDS.includes(t.recurringBillId) && t.id !== '1790703873975-4ntdzkc'
+      );
+      if (cleanTxns.length > 0) {
+        const dbTxns = cleanTxns.map((t) => formatTransactionForDb(effectiveUserId, t));
+        await supabase.from('transactions').upsert(dbTxns, { onConflict: 'id' });
+      }
     }
 
     // 4. Budgets
@@ -340,15 +386,21 @@ export async function uploadLocalDataToCloud(userId = null, state) {
       await supabase.from('budgets').upsert(dbBudgets, { onConflict: 'id' });
     }
 
-    // 5. Savings Goals
-    if (state.savingsGoals && state.savingsGoals.length > 0) {
-      const dbGoals = state.savingsGoals.map((g) => formatSavingsGoalForDb(effectiveUserId, g));
+    // 5. Savings Goals (filter out mock data)
+    const cleanSavingsGoals = (state.savingsGoals || []).filter(
+      (g) => !MOCK_SAVINGS_IDS.includes(g.id) && !MOCK_SAVINGS_NAMES.includes(g.name)
+    );
+    if (cleanSavingsGoals.length > 0) {
+      const dbGoals = cleanSavingsGoals.map((g) => formatSavingsGoalForDb(effectiveUserId, g));
       await supabase.from('savings_goals').upsert(dbGoals, { onConflict: 'id' });
     }
 
-    // 6. Recurring Bills
-    if (state.recurringBills && state.recurringBills.length > 0) {
-      const dbBills = state.recurringBills.map((b) => formatRecurringBillForDb(effectiveUserId, b));
+    // 6. Recurring Bills (filter out mock data)
+    const cleanBills = (state.recurringBills || []).filter(
+      (b) => !MOCK_BILL_IDS.includes(b.id) && !MOCK_BILL_NAMES.includes(b.name)
+    );
+    if (cleanBills.length > 0) {
+      const dbBills = cleanBills.map((b) => formatRecurringBillForDb(effectiveUserId, b));
       await supabase.from('recurring_bills').upsert(dbBills, { onConflict: 'id' });
     }
 

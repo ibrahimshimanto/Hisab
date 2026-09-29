@@ -252,17 +252,19 @@ export default function RecurringBillsSection({ title, subtitle, showCardWrapper
               <h3 className="card-title" style={{ margin: 0, fontSize: 'var(--text-base)' }}>
                 {title || (lang === 'bn' ? 'মাসিক নিয়মিত বিল ও ব্যয়' : 'Monthly Recurring Expenses')}
               </h3>
-              <span style={{
-                padding: '2px 8px',
-                borderRadius: 'var(--radius-full)',
-                fontSize: '11px',
-                fontWeight: 'var(--weight-bold)',
-                background: progressPct === 100 ? 'rgba(16, 185, 129, 0.16)' : 'rgba(94, 210, 28, 0.16)',
-                color: progressPct === 100 ? 'var(--color-income)' : 'var(--color-primary-dark)',
-                whiteSpace: 'nowrap',
-              }}>
-                {paidCount} / {totalCount} {lang === 'bn' ? 'পরিশোধিত' : 'Paid'}
-              </span>
+              {totalCount > 0 && (
+                <span style={{
+                  padding: '2px 8px',
+                  borderRadius: 'var(--radius-full)',
+                  fontSize: '11px',
+                  fontWeight: 'var(--weight-bold)',
+                  background: progressPct === 100 ? 'rgba(16, 185, 129, 0.16)' : 'rgba(94, 210, 28, 0.16)',
+                  color: progressPct === 100 ? 'var(--color-income)' : 'var(--color-primary-dark)',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {paidCount} / {totalCount} {lang === 'bn' ? 'পরিশোধিত' : 'Paid'}
+                </span>
+              )}
             </div>
             <p className="card-subtitle" style={{ margin: '3px 0 0', fontSize: '12px' }}>
               {subtitle || (lang === 'bn' ? `${monthName} এর জন্য নিয়মিত প্রতিশ্রুতির অবস্থা` : `Payment status & fixed commitments for ${monthName}`)}
@@ -281,8 +283,54 @@ export default function RecurringBillsSection({ title, subtitle, showCardWrapper
         </button>
       </div>
 
-      {/* Progress & Summary Bar (Optimized Data Layer) */}
-      <div style={{
+      {/* If no bills added yet, show clean inviting empty state */}
+      {totalCount === 0 ? (
+        <div style={{
+          padding: 'var(--space-8) var(--space-6)',
+          borderRadius: 'var(--radius-xl)',
+          background: 'var(--glass-bg-subtle)',
+          border: '1px dashed var(--glass-border)',
+          textAlign: 'center',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 10,
+        }}>
+          <div style={{
+            width: 44,
+            height: 44,
+            borderRadius: 'var(--radius-full)',
+            background: 'rgba(94, 210, 28, 0.1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--color-primary-dark)',
+          }}>
+            <RefreshCw size={22} />
+          </div>
+          <h4 style={{ margin: 0, fontSize: 'var(--text-base)', fontWeight: 'var(--weight-semibold)', color: 'var(--color-text-primary)' }}>
+            {lang === 'bn' ? 'কোনো নিয়মিত বিল যোগ করা হয়নি' : 'No recurring bills added yet'}
+          </h4>
+          <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)', maxWidth: 420 }}>
+            {lang === 'bn'
+              ? 'বাড়ি ভাড়া, ইন্টারনেট, বিদ্যুৎ বিল বা সাবস্ক্রিপশনের মতো নিয়মিত খরচগুলো এক জায়গা থেকে সহজে ট্র্যাক ও পরিশোধ করুন।'
+              : 'Track your recurring obligations like rent, internet, electricity, and subscriptions with one-tap payment recording.'}
+          </p>
+          <button
+            type="button"
+            className="btn btn-lime btn-sm"
+            onClick={openAddBillModal}
+            style={{ marginTop: 6, gap: 6 }}
+          >
+            <Plus size={15} strokeWidth={2.5} />
+            <span>{lang === 'bn' ? 'প্রথম নিয়মিত বিল যোগ করুন' : 'Add Your First Bill'}</span>
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* Progress & Summary Bar (Optimized Data Layer) */}
+          <div style={{
         padding: '14px 16px',
         borderRadius: 'var(--radius-xl)',
         background: 'var(--color-surface-secondary)',
@@ -612,6 +660,8 @@ export default function RecurringBillsSection({ title, subtitle, showCardWrapper
             );
           })}
         </div>
+      )}
+        </>
       )}
 
       {/* ========================================================

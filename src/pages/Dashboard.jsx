@@ -874,31 +874,61 @@ export default function Dashboard() {
 
         {/* Mini Preview Items List */}
         <div className="savings-preview-deck">
-          {savingsGoals.slice(0, 3).map((g) => {
-            const pct = g.targetAmount > 0 ? Math.min(100, Math.round((g.currentAmount / g.targetAmount) * 100)) : 0;
-            return (
-              <div
-                key={g.id}
-                className="savings-preview-item"
-                onClick={() => navigate('/savings')}
+          {savingsGoals.length === 0 ? (
+            <div style={{
+              gridColumn: '1 / -1',
+              padding: 'var(--space-6)',
+              borderRadius: 'var(--radius-xl)',
+              background: 'var(--glass-bg-subtle)',
+              border: '1px dashed var(--glass-border)',
+              textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+            }}>
+              <Target size={24} style={{ opacity: 0.5, color: '#5ED21C' }} />
+              <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)', fontWeight: 'var(--weight-medium)' }}>
+                {lang === 'bn' ? 'কোনো সঞ্চয় লক্ষ্য বা লকড ফান্ড তৈরি করা হয়নি' : 'No savings goals or locked funds created yet'}
+              </span>
+              <button
+                type="button"
+                className="btn btn-lime btn-xs"
+                onClick={() => openSavingsModal()}
+                style={{ marginTop: 4, gap: 4 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {g.isLocked ? <Lock size={13} color="#D97706" /> : <Target size={13} color="#5ED21C" />}
-                    <span className="savings-preview-name">{g.name}</span>
+                <Plus size={13} strokeWidth={2.5} />
+                <span>{lang === 'bn' ? 'প্রথম সঞ্চয় লক্ষ্য যোগ করুন' : 'Create Your First Goal'}</span>
+              </button>
+            </div>
+          ) : (
+            savingsGoals.slice(0, 3).map((g) => {
+              const pct = g.targetAmount > 0 ? Math.min(100, Math.round((g.currentAmount / g.targetAmount) * 100)) : 0;
+              return (
+                <div
+                  key={g.id}
+                  className="savings-preview-item"
+                  onClick={() => navigate('/savings')}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {g.isLocked ? <Lock size={13} color="#D97706" /> : <Target size={13} color="#5ED21C" />}
+                      <span className="savings-preview-name">{g.name}</span>
+                    </div>
+                    <span className="savings-preview-pct">{pct}%</span>
                   </div>
-                  <span className="savings-preview-pct">{pct}%</span>
+                  <div className="savings-preview-track">
+                    <div className="savings-preview-fill" style={{ width: `${pct}%` }} />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: '11px', color: 'var(--color-text-secondary)' }}>
+                    <span>{formatCurrency(g.currentAmount)}</span>
+                    <span style={{ color: 'var(--color-text-tertiary)' }}>of {formatCurrency(g.targetAmount)}</span>
+                  </div>
                 </div>
-                <div className="savings-preview-track">
-                  <div className="savings-preview-fill" style={{ width: `${pct}%` }} />
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: '11px', color: 'var(--color-text-secondary)' }}>
-                  <span>{formatCurrency(g.currentAmount)}</span>
-                  <span style={{ color: 'var(--color-text-tertiary)' }}>of {formatCurrency(g.targetAmount)}</span>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
 
         {/* View All Footer Link - Centered */}

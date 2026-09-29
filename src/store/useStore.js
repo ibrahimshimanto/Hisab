@@ -10,17 +10,35 @@ import {
   pushSavingsGoal,
   pushRecurringBill,
   pushProfile,
+  purgeUserMockDataFromCloud,
   getOrCreateClientUserId,
 } from '../services/syncService.js';
 
 const STORAGE_KEY = 'hisab-data';
 
-const defaultAccounts = [
-  { id: 'acc-bkash', name: 'bKash', type: 'mfs', balance: 5750 },
-  { id: 'acc-bank', name: 'City Bank', type: 'bank', balance: 45000 },
-  { id: 'acc-nagad', name: 'Nagad', type: 'mfs', balance: 2500 },
-  { id: 'acc-wallet', name: 'Cash Wallet', type: 'wallet', balance: 3200 },
-];
+export const MOCK_SAVINGS_IDS = new Set(['goal-dps-1', 'goal-fdr-1', 'goal-emergency-1', 'goal-macbook-1']);
+export const MOCK_SAVINGS_NAMES = new Set(['bKash Smart DPS 5K', 'City Bank High-Yield FDR', '6-Month Emergency Reserve', 'MacBook Pro M3 Max']);
+export const MOCK_BILL_IDS = new Set(['rec-rent', 'rec-internet', 'rec-electricity', 'rec-netflix', 'rb-2']);
+export const MOCK_BILL_NAMES = new Set(['Home Rent', 'Broadband Internet', 'Electricity Bill', 'Netflix Subscription']);
+
+export function isMockSavings(goal) {
+  if (!goal) return false;
+  return MOCK_SAVINGS_IDS.has(goal.id) || MOCK_SAVINGS_NAMES.has(goal.name);
+}
+
+export function isMockBill(bill) {
+  if (!bill) return false;
+  return MOCK_BILL_IDS.has(bill.id) || MOCK_BILL_NAMES.has(bill.name);
+}
+
+export function isMockTransaction(txn) {
+  if (!txn) return false;
+  if (txn.recurringBillId && MOCK_BILL_IDS.has(txn.recurringBillId)) return true;
+  if (txn.id === '1790703873975-4ntdzkc') return true;
+  return false;
+}
+
+export const defaultAccounts = [];
 
 function consolidateAccounts(accounts = [], transactions = [], adjustments = []) {
   if (!Array.isArray(accounts) || accounts.length <= 1) {
@@ -97,7 +115,35 @@ function loadFromStorage() {
         }
       }
       if (!data.recurringBills || !Array.isArray(data.recurringBills)) {
-        data.recurringBills = defaultRecurringBills;
+        data.recurringBills = [];
+      }
+      if (!data.savingsGoals || !Array.isArray(data.savingsGoals)) {
+        data.savingsGoals = [];
+      }
+
+      // Purge any legacy mock/dummy items from localStorage
+      let purgedMock = false;
+      if (Array.isArray(data.savingsGoals)) {
+        const origLen = data.savingsGoals.length;
+        data.savingsGoals = data.savingsGoals.filter((g) => !isMockSavings(g));
+        if (data.savingsGoals.length !== origLen) purgedMock = true;
+      }
+      if (Array.isArray(data.recurringBills)) {
+        const origLen = data.recurringBills.length;
+        data.recurringBills = data.recurringBills.filter((b) => !isMockBill(b));
+        if (data.recurringBills.length !== origLen) purgedMock = true;
+      }
+      if (Array.isArray(data.transactions)) {
+        const origLen = data.transactions.length;
+        data.transactions = data.transactions.filter((t) => !isMockTransaction(t));
+        if (data.transactions.length !== origLen) purgedMock = true;
+      }
+      if (purgedMock) {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        } catch {
+          // ignore
+        }
       }
     }
     return data;
@@ -166,121 +212,8 @@ export const defaultModeSettings = {
   racing: { savingRate: 5, defaultSavingRate: 5, minRate: 1, maxRate: 15 },
 };
 
-const defaultSavingsGoals = [
-  {
-    id: 'goal-dps-1',
-    name: 'bKash Smart DPS 5K',
-    type: 'dps',
-    targetAmount: 120000,
-    currentAmount: 45000,
-    monthlyContribution: 5000,
-    interestRate: 7.0,
-    startDate: '2024-01-15',
-    targetDate: '2026-12-31',
-    isLocked: true,
-    linkedAccountId: '',
-    status: 'active',
-    history: [
-      { id: 'h-1', date: '2024-01-15', amount: 5000, type: 'deposit', note: 'Initial installment' },
-      { id: 'h-2', date: '2024-02-15', amount: 5000, type: 'deposit', note: 'Feb auto-debit' },
-      { id: 'h-3', date: '2024-03-15', amount: 5000, type: 'deposit', note: 'Mar installment' }
-    ]
-  },
-  {
-    id: 'goal-fdr-1',
-    name: 'City Bank High-Yield FDR',
-    type: 'fdr',
-    targetAmount: 100000,
-    currentAmount: 100000,
-    monthlyContribution: 0,
-    interestRate: 8.5,
-    startDate: '2024-06-01',
-    targetDate: '2025-06-01',
-    isLocked: true,
-    linkedAccountId: '',
-    status: 'active',
-    history: [
-      { id: 'h-4', date: '2024-06-01', amount: 100000, type: 'deposit', note: 'Fixed Deposit creation' }
-    ]
-  },
-  {
-    id: 'goal-emergency-1',
-    name: '6-Month Emergency Reserve',
-    type: 'emergency',
-    targetAmount: 150000,
-    currentAmount: 90000,
-    monthlyContribution: 10000,
-    interestRate: 4.5,
-    startDate: '2024-03-01',
-    targetDate: '2025-09-01',
-    isLocked: false,
-    linkedAccountId: '',
-    status: 'active',
-    history: [
-      { id: 'h-5', date: '2024-03-01', amount: 90000, type: 'deposit', note: 'Liquid reserve allocation' }
-    ]
-  },
-  {
-    id: 'goal-macbook-1',
-    name: 'MacBook Pro M3 Max',
-    type: 'purchase',
-    targetAmount: 240000,
-    currentAmount: 160000,
-    monthlyContribution: 20000,
-    interestRate: 0,
-    startDate: '2024-04-01',
-    targetDate: '2024-12-25',
-    isLocked: false,
-    linkedAccountId: '',
-    status: 'active',
-    history: [
-      { id: 'h-6', date: '2024-04-01', amount: 160000, type: 'deposit', note: 'Tech purchase fund seed' }
-    ]
-  }
-];
-
-export const defaultRecurringBills = [
-  {
-    id: 'rec-rent',
-    name: 'Home Rent',
-    amount: 22000,
-    dueDay: 5,
-    categoryId: 'rent',
-    icon: '🏠',
-    accountId: 'acc-bank',
-    paidMonths: [],
-  },
-  {
-    id: 'rec-internet',
-    name: 'Broadband Internet',
-    amount: 1200,
-    dueDay: 10,
-    categoryId: 'utilities',
-    icon: '🌐',
-    accountId: 'acc-bkash',
-    paidMonths: [],
-  },
-  {
-    id: 'rec-electricity',
-    name: 'Electricity Bill',
-    amount: 3200,
-    dueDay: 15,
-    categoryId: 'utilities',
-    icon: '⚡',
-    accountId: 'acc-bkash',
-    paidMonths: [],
-  },
-  {
-    id: 'rec-netflix',
-    name: 'Netflix Subscription',
-    amount: 1450,
-    dueDay: 22,
-    categoryId: 'subscriptions',
-    icon: '🎬',
-    accountId: 'acc-bank',
-    paidMonths: [],
-  },
-];
+export const defaultSavingsGoals = [];
+export const defaultRecurringBills = [];
 
 const initialState = {
   accounts: [],
@@ -288,8 +221,8 @@ const initialState = {
   budgets: [],
   adjustments: [],
   categories: defaultCategories,
-  savingsGoals: defaultSavingsGoals,
-  recurringBills: defaultRecurringBills,
+  savingsGoals: [],
+  recurringBills: [],
   savingsModal: { isOpen: false, editGoal: null },
   depositModal: { isOpen: false, goal: null, mode: 'deposit' },
   calculatorModal: { isOpen: false, initialData: null },
@@ -467,6 +400,9 @@ const useStore = create((set, get) => ({
         });
 
         // Automatically sync and pull from cloud for this authenticated user
+        if (currentUser?.id) {
+          purgeUserMockDataFromCloud(currentUser.id).catch(() => {});
+        }
         const cloudResult = await fetchCloudData(currentUser.id);
         if (cloudResult.success) {
           const hasCloudData =
@@ -496,6 +432,7 @@ const useStore = create((set, get) => ({
       supabase.auth.onAuthStateChange(async (event, currentSession) => {
         const authUser = currentSession?.user || null;
         if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && authUser) {
+          purgeUserMockDataFromCloud(authUser.id).catch(() => {});
           set({ user: authUser, session: currentSession, syncStatus: 'syncing' });
           const userCloudData = await fetchCloudData(authUser.id);
           if (
@@ -523,6 +460,10 @@ const useStore = create((set, get) => ({
 
   hydrateFromCloud: (cloudData) => {
     set((state) => {
+      const cleanSavingsGoals = (cloudData.savingsGoals || []).filter((g) => !isMockSavings(g));
+      const cleanRecurringBills = (cloudData.recurringBills || []).filter((b) => !isMockBill(b));
+      const cleanTransactions = (cloudData.transactions || []).filter((t) => !isMockTransaction(t));
+
       const newState = {
         ...state,
         profile: {
@@ -538,10 +479,16 @@ const useStore = create((set, get) => ({
         financialMode: cloudData.financialMode || state.financialMode,
         modeSettings: cloudData.modeSettings || state.modeSettings,
         accounts: cloudData.accounts?.length > 0 ? cloudData.accounts : state.accounts,
-        transactions: cloudData.transactions?.length > 0 ? cloudData.transactions : state.transactions,
+        transactions: cleanTransactions.length > 0
+          ? cleanTransactions
+          : (state.transactions || []).filter((t) => !isMockTransaction(t)),
         budgets: cloudData.budgets?.length > 0 ? cloudData.budgets : state.budgets,
-        savingsGoals: cloudData.savingsGoals?.length > 0 ? cloudData.savingsGoals : state.savingsGoals,
-        recurringBills: cloudData.recurringBills?.length > 0 ? cloudData.recurringBills : state.recurringBills,
+        savingsGoals: cloudData.savingsGoals !== undefined
+          ? cleanSavingsGoals
+          : (state.savingsGoals || []).filter((g) => !isMockSavings(g)),
+        recurringBills: cloudData.recurringBills !== undefined
+          ? cleanRecurringBills
+          : (state.recurringBills || []).filter((b) => !isMockBill(b)),
         onboardingComplete: state.onboardingComplete
           ? (cloudData.onboardingComplete !== undefined ? Boolean(cloudData.onboardingComplete) : state.onboardingComplete)
           : false,
