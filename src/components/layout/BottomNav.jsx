@@ -5,7 +5,7 @@ import useStore from '../../store/useStore.js';
 
 export default function BottomNav() {
   const { lang } = useTranslation();
-  const { quickAddModal, savingsModal, depositModal, calculatorModal, voiceModal, isTourOpen } = useStore();
+  const { quickAddModal, savingsModal, depositModal, calculatorModal, voiceModal, isTourOpen, authModalOpen } = useStore();
 
   const isStoreModalOpen =
     Boolean(quickAddModal?.isOpen) ||
@@ -13,7 +13,8 @@ export default function BottomNav() {
     Boolean(depositModal?.isOpen) ||
     Boolean(calculatorModal?.isOpen) ||
     Boolean(voiceModal?.isOpen) ||
-    Boolean(isTourOpen);
+    Boolean(isTourOpen) ||
+    Boolean(authModalOpen);
 
   if (isStoreModalOpen) return null;
 
