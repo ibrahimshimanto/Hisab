@@ -353,18 +353,6 @@ export default function AuthScreen({ onAuthenticated }) {
     loginUser(demoUser);
   };
 
-  const handleGuestContinue = () => {
-    const guestUser = {
-      id: 'guest-' + Date.now(),
-      email: 'guest@hisab.app',
-      user_metadata: {
-        full_name: 'Guest User',
-      },
-      isGuest: true,
-      created_at: new Date().toISOString(),
-    };
-    loginUser(guestUser);
-  };
 
   return (
     <div style={{
@@ -850,21 +838,6 @@ export default function AuthScreen({ onAuthenticated }) {
             </div>
           )}
 
-          {/* Guest / Offline Access Link */}
-          <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--color-border-light)', textAlign: 'center' }}>
-            <button
-              type="button"
-              onClick={handleGuestContinue}
-              className="btn btn-ghost btn-sm"
-              style={{
-                fontSize: '12px',
-                color: 'var(--color-text-tertiary)',
-                textDecoration: 'underline',
-              }}
-            >
-              {lang === 'bn' ? 'গেস্ট হিসেবে চালিয়ে যান (অফলাইন মোড)' : 'Continue as Guest (Offline Mode)'}
-            </button>
-          </div>
         </div>
 
         {/* Security & Feature Badges */}

@@ -437,45 +437,59 @@ const useStore = create((set, get) => ({
       }
 
       let currentUser = activeSession?.user || null;
-      if (!currentUser && typeof window !== 'undefined') {
-        const clientUserId = getOrCreateClientUserId();
-        currentUser = {
-          id: clientUserId,
-          email: 'guest@hisab.app',
-          isAnonymous: true,
-        };
+
+      // Clean up legacy guest user from localStorage if present
+      if (typeof window !== 'undefined') {
+        try {
+          const activeRaw = localStorage.getItem('hisab_active_user');
+          if (activeRaw) {
+            const parsed = JSON.parse(activeRaw);
+            if (parsed?.isGuest || parsed?.email === 'guest@hisab.app' || parsed?.isAnonymous) {
+              localStorage.removeItem('hisab_active_user');
+            }
+          }
+        } catch {}
       }
 
-      set({
-        user: currentUser,
-        session: activeSession || null,
-        syncStatus: 'syncing',
-        isAuthLoading: false,
-      });
+      if (!currentUser) {
+        set({
+          user: null,
+          session: null,
+          syncStatus: 'synced',
+          isAuthLoading: false,
+        });
+      } else {
+        set({
+          user: currentUser,
+          session: activeSession || null,
+          syncStatus: 'syncing',
+          isAuthLoading: false,
+        });
 
-      // Automatically sync and pull from cloud for this client user
-      const cloudResult = await fetchCloudData(currentUser.id);
-      if (cloudResult.success) {
-        const hasCloudData =
-          (cloudResult.data.transactions?.length > 0) ||
-          (cloudResult.data.accounts?.length > 0) ||
-          (cloudResult.data.savingsGoals?.length > 0) ||
-          (cloudResult.data.budgets?.length > 0) ||
-          (cloudResult.data.recurringBills?.length > 0);
+        // Automatically sync and pull from cloud for this authenticated user
+        const cloudResult = await fetchCloudData(currentUser.id);
+        if (cloudResult.success) {
+          const hasCloudData =
+            (cloudResult.data.transactions?.length > 0) ||
+            (cloudResult.data.accounts?.length > 0) ||
+            (cloudResult.data.savingsGoals?.length > 0) ||
+            (cloudResult.data.budgets?.length > 0) ||
+            (cloudResult.data.recurringBills?.length > 0);
 
-        if (hasCloudData) {
-          get().hydrateFromCloud(cloudResult.data);
-          set({ syncStatus: 'synced', lastSyncedAt: new Date().toISOString() });
-        } else {
-          // If cloud has no data for this user yet, upload current local state if user has accounts
-          const currentAccounts = get().accounts || [];
-          if (currentAccounts.length > 0) {
-            await uploadLocalDataToCloud(currentUser.id, get());
+          if (hasCloudData) {
+            get().hydrateFromCloud(cloudResult.data);
+            set({ syncStatus: 'synced', lastSyncedAt: new Date().toISOString() });
+          } else {
+            // If cloud has no data for this user yet, upload current local state if user has accounts
+            const currentAccounts = get().accounts || [];
+            if (currentAccounts.length > 0) {
+              await uploadLocalDataToCloud(currentUser.id, get());
+            }
+            set({ syncStatus: 'synced', lastSyncedAt: new Date().toISOString() });
           }
+        } else {
           set({ syncStatus: 'synced', lastSyncedAt: new Date().toISOString() });
         }
-      } else {
-        set({ syncStatus: 'synced', lastSyncedAt: new Date().toISOString() });
       }
 
       // Handle user OAuth sign-ins / sign-outs

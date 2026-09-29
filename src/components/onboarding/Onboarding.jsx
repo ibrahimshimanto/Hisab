@@ -2,32 +2,21 @@ import { useState, useRef, useEffect } from 'react';
 import {
   Globe,
   User,
-  Wallet,
-  Plus,
   ArrowRight,
   Check,
   AlertCircle,
   Camera,
-  Trash2,
-  ChevronDown,
   ShieldCheck,
   Mail,
   LogOut,
   RefreshCw,
   KeyRound,
   CheckCircle2,
-  Sparkles,
 } from 'lucide-react';
 import { useTranslation } from '../../i18n/index.jsx';
 import useStore from '../../store/useStore.js';
 import HisabLogo from '../common/HisabLogo.jsx';
 import { getSupabase, isSupabaseConfigured } from '../../lib/supabase.js';
-import {
-  MFS_PROVIDERS,
-  BANK_PROVIDERS,
-  WALLET_PROVIDERS,
-  ProviderLogo,
-} from '../../lib/accountProviders.jsx';
 
 export default function Onboarding({ onComplete }) {
   const { t, lang, changeLanguage } = useTranslation();
@@ -39,9 +28,15 @@ export default function Onboarding({ onComplete }) {
     syncToCloud,
     user,
     signOut,
+    startTour,
   } = useStore();
 
-  const [step, setStep] = useState(0);
+  // Step 0: Language | Step 1: Sign In | Step 2: Profile Setup | Step 3: Success Screen
+  // If user is already authenticated (e.g. returning from Google OAuth redirect),
+  // jump straight to Step 2 (Profile Setup) so Language NEVER appears again after sign in.
+  const [step, setStep] = useState(() => {
+    return user ? 2 : 0;
+  });
 
   // Authentication State
   const [authEmail, setAuthEmail] = useState('');
@@ -52,36 +47,88 @@ export default function Onboarding({ onComplete }) {
   const [authSuccess, setAuthSuccess] = useState('');
 
   // Profile Step State
-  const initialName = user?.user_metadata?.full_name || (user?.email ? user.email.split('@')[0] : '');
+  const initialName = user?.user_metadata?.full_name || (user?.email && user.email !== 'guest@hisab.app' ? user.email.split('@')[0] : '');
   const [name, setName] = useState(initialName);
   const [nameError, setNameError] = useState('');
   const [profilePhoto, setProfilePhoto] = useState(user?.user_metadata?.avatar_url || '');
 
-  // Account Setup State
-  const [accounts, setAccounts] = useState([]);
-  const [accType, setAccType] = useState('mfs'); // 'mfs' | 'bank' | 'wallet'
-  const [selectedProviderId, setSelectedProviderId] = useState('bkash');
-  const [accName, setAccName] = useState('bKash');
-  const [accBalance, setAccBalance] = useState('');
+  // Success Screen Progress (0 to 100%)
+  const [progress, setProgress] = useState(0);
 
   const nameInputRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // Automatically adapt name & avatar if user logs in during onboarding
+  // Pre-fill name and avatar if user logs in via Google
   useEffect(() => {
     if (user) {
-      const googleName = user.user_metadata?.full_name || (user.email ? user.email.split('@')[0] : '');
+      const googleName = user.user_metadata?.full_name || (user.email && user.email !== 'guest@hisab.app' ? user.email.split('@')[0] : '');
       const googleAvatar = user.user_metadata?.avatar_url || '';
       if (googleName && !name) setName(googleName);
       if (googleAvatar && !profilePhoto) setProfilePhoto(googleAvatar);
     }
   }, [user]);
 
+  // If user is already authenticated, jump to profile setup and never show language or sign in
+  useEffect(() => {
+    if (user && step < 2) {
+      setStep(2);
+    }
+  }, [user, step]);
+
+  // Success Screen Timer & Background Provisioning (3.5 seconds)
+  useEffect(() => {
+    if (step === 3) {
+      // 1. Commit profile & starter accounts in background
+      const finalName = name.trim() || (lang === 'bn' ? 'ব্যবহারকারী' : 'User');
+      updateProfile({
+        name: finalName,
+        avatar: profilePhoto || '',
+      });
+      setFinancialMode('cruise');
+
+      // Only initialize starter account if user has no accounts yet
+      const currentAccounts = useStore.getState().accounts || [];
+      if (currentAccounts.length === 0) {
+        initializeOnboardingAccounts([
+          {
+            name: lang === 'bn' ? 'ক্যাশ ওয়ালেট' : 'Cash Wallet',
+            type: 'wallet',
+            balance: 0,
+          },
+        ]);
+      }
+      syncToCloud();
+
+      // 2. Animate progress bar over 3.5 seconds
+      const startTime = Date.now();
+      const duration = 3500;
+      const interval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const pct = Math.min(100, Math.round((elapsed / duration) * 100));
+        setProgress(pct);
+
+        if (pct >= 100) {
+          clearInterval(interval);
+          // Complete onboarding
+          completeOnboarding();
+          onComplete?.();
+          window.scrollTo(0, 0);
+
+          // Launch the platform auto-tour on the Dashboard after mount delay
+          setTimeout(() => {
+            startTour();
+          }, 450);
+        }
+      }, 50);
+
+      return () => clearInterval(interval);
+    }
+  }, [step]);
+
   const steps = [
     { icon: Globe, title: t('onboarding.selectLanguage') },
-    { icon: ShieldCheck, title: lang === 'bn' ? 'সাইন ইন / ক্লাউড অ্যাকাউন্ট' : 'Sign In / Account' },
+    { icon: ShieldCheck, title: lang === 'bn' ? 'সাইন ইন করুন' : 'Sign In' },
     { icon: User, title: lang === 'bn' ? 'প্রোফাইল সাজান' : 'Setup Profile' },
-    { icon: Wallet, title: t('onboarding.setupAccounts') },
   ];
 
   // Handle Google OAuth Sign In
@@ -94,10 +141,14 @@ export default function Onboarding({ onComplete }) {
     setAuthLoading(true);
     setAuthError('');
     try {
+      const redirectUrl = typeof window !== 'undefined' && window.location.origin
+        ? window.location.origin
+        : 'https://hisab-psi-eight.vercel.app';
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin,
+          redirectTo: redirectUrl,
         },
       });
       if (error) throw error;
@@ -123,10 +174,14 @@ export default function Onboarding({ onComplete }) {
     setAuthLoading(true);
     setAuthError('');
     try {
+      const redirectUrl = typeof window !== 'undefined' && window.location.origin
+        ? window.location.origin
+        : 'https://hisab-psi-eight.vercel.app';
+
       const { error } = await supabase.auth.signInWithOtp({
         email: authEmail.trim(),
         options: {
-          emailRedirectTo: window.location.origin,
+          emailRedirectTo: redirectUrl,
         },
       });
       if (error) throw error;
@@ -167,7 +222,7 @@ export default function Onboarding({ onComplete }) {
       if (userMeta?.full_name && !name) setName(userMeta.full_name);
       setTimeout(() => {
         setStep(2); // move to profile step
-      }, 700);
+      }, 500);
     } catch (err) {
       console.error('Verify OTP error:', err);
       setAuthError(err.message || 'Invalid or expired code');
@@ -176,7 +231,7 @@ export default function Onboarding({ onComplete }) {
     }
   };
 
-  // Handle Photo Upload from Device with client-side canvas compression for smooth storage
+  // Handle Photo Upload from Device
   const handlePhotoUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -216,16 +271,27 @@ export default function Onboarding({ onComplete }) {
   };
 
   const handleNextStep = () => {
-    // Step 1 is Authentication Step (Required)
-    if (step === 1 && !user) {
-      setAuthError(
-        lang === 'bn'
-          ? 'চালিয়ে যেতে অনুগ্রহ করে গুগল বা ইমেইল দিয়ে সাইন ইন করুন।'
-          : 'Please sign in with Google or Email to continue.'
-      );
+    // Step 0: Language -> advance to Step 1 (Sign In)
+    if (step === 0) {
+      setStep(1);
       return;
     }
-    // Step 2 is Profile Step
+
+    // Step 1: Sign In (Requires Authentication)
+    if (step === 1) {
+      if (!user) {
+        setAuthError(
+          lang === 'bn'
+            ? 'চালিয়ে যেতে অনুগ্রহ করে গুগল বা ইমেইল দিয়ে সাইন ইন করুন।'
+            : 'Please sign in with Google or Email to continue.'
+        );
+        return;
+      }
+      setStep(2);
+      return;
+    }
+
+    // Step 2: Profile Step (Validate name) -> advance to Step 3 (Success Screen)
     if (step === 2) {
       if (!name.trim()) {
         setNameError(
@@ -237,99 +303,9 @@ export default function Onboarding({ onComplete }) {
         return;
       }
       setNameError('');
-    }
-    setStep(step + 1);
-  };
-
-  // Handle Type Switch in Account Form
-  const handleTypeChange = (type) => {
-    setAccType(type);
-    if (type === 'mfs') {
-      setSelectedProviderId('bkash');
-      setAccName(lang === 'bn' ? 'বিকাশ' : 'bKash');
-    } else if (type === 'bank') {
-      setSelectedProviderId('brac');
-      setAccName(lang === 'bn' ? 'ব্র্যাক ব্যাংক' : 'BRAC Bank');
-    } else {
-      setSelectedProviderId('cash_wallet');
-      setAccName(lang === 'bn' ? 'ক্যাশ ওয়ালেট' : 'Cash Wallet');
+      setStep(3); // Start success screen & background provisioning
     }
   };
-
-  // Handle Provider Dropdown Change
-  const handleProviderChange = (e) => {
-    const provId = e.target.value;
-    setSelectedProviderId(provId);
-
-    const providerList = accType === 'mfs'
-      ? MFS_PROVIDERS
-      : accType === 'bank'
-      ? BANK_PROVIDERS
-      : WALLET_PROVIDERS;
-
-    const matched = providerList.find((p) => p.id === provId);
-    if (matched) {
-      setAccName(lang === 'bn' ? (matched.nameBn || matched.name) : matched.name);
-    }
-  };
-
-  // Add Account to Local List
-  const handleAddAccount = () => {
-    const finalName = accName.trim() || (accType === 'mfs' ? 'bKash' : accType === 'bank' ? 'Bank Account' : 'Cash Wallet');
-    setAccounts([
-      ...accounts,
-      {
-        type: accType,
-        providerId: selectedProviderId,
-        name: finalName,
-        balance: parseFloat(accBalance) || 0,
-      },
-    ]);
-    setAccBalance('');
-  };
-
-  const handleRemoveAccount = (index) => {
-    setAccounts(accounts.filter((_, i) => i !== index));
-  };
-
-  const handleFinish = (isSkipping = false) => {
-    let finalAccounts = [...accounts];
-
-    // If user filled in an account without clicking "+ Add Account", commit it automatically
-    if (!isSkipping && accName.trim() && (accBalance !== '' || accounts.length === 0)) {
-      finalAccounts.push({
-        type: accType,
-        providerId: selectedProviderId,
-        name: accName.trim(),
-        balance: parseFloat(accBalance) || 0,
-      });
-    }
-
-    // Save profile with name and uploaded device photo
-    updateProfile({
-      name: name.trim() || (lang === 'bn' ? 'ব্যবহারকারী' : 'User'),
-      avatar: profilePhoto || '',
-    });
-
-    // Default to Balanced mode
-    setFinancialMode('cruise');
-
-    // Initialize user accounts cleanly
-    initializeOnboardingAccounts(isSkipping ? [] : finalAccounts);
-
-    // Complete onboarding in store & localStorage
-    completeOnboarding();
-    syncToCloud();
-    window.scrollTo(0, 0);
-    onComplete?.();
-  };
-
-  // Active providers based on selected tab
-  const currentProviderList = accType === 'mfs'
-    ? MFS_PROVIDERS
-    : accType === 'bank'
-    ? BANK_PROVIDERS
-    : WALLET_PROVIDERS;
 
   return (
     <div style={{
@@ -358,14 +334,14 @@ export default function Onboarding({ onComplete }) {
 
       <div style={{
         width: '100%',
-        maxWidth: 520,
+        maxWidth: 500,
         position: 'relative',
         zIndex: 2,
         animation: 'fadeInUp 0.35s ease',
       }}>
         {/* Brand Header */}
         <div style={{ textAlign: 'center', marginBottom: 'var(--space-4)' }}>
-          <HisabLogo variant="charcoal" size={52} style={{ margin: '0 auto var(--space-2)' }} />
+          <HisabLogo variant="charcoal" size={50} style={{ margin: '0 auto var(--space-2)' }} />
           <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 'var(--weight-extrabold)', letterSpacing: '-0.02em', color: 'var(--color-text-primary)' }}>
             {t('onboarding.welcome')}
           </h1>
@@ -374,55 +350,59 @@ export default function Onboarding({ onComplete }) {
           </p>
         </div>
 
-        {/* Step Indicator Progress Bar */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 'var(--space-4)' }}>
-          {steps.map((s, i) => (
-            <div
-              key={i}
-              style={{
-                width: i === step ? 40 : 10,
-                height: 7,
-                borderRadius: 'var(--radius-full)',
-                background: i <= step ? '#5ED21C' : 'var(--color-border)',
-                transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-              }}
-            />
-          ))}
-        </div>
+        {/* Step Indicator Progress Bar (Hidden during success screen) */}
+        {step < 3 && (
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginBottom: 'var(--space-4)' }}>
+            {steps.map((s, i) => (
+              <div
+                key={i}
+                style={{
+                  width: i === step ? 40 : 10,
+                  height: 7,
+                  borderRadius: 'var(--radius-full)',
+                  background: i <= step ? '#5ED21C' : 'var(--color-border)',
+                  transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                }}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Main Step Container Card */}
         <div className="card" style={{
-          padding: '24px 22px',
+          padding: '26px 22px',
           boxShadow: '0 12px 36px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04)',
           border: '1px solid var(--glass-border)',
         }}>
-          {/* Step Header */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-            <div style={{
-              width: 38,
-              height: 38,
-              borderRadius: 'var(--radius-md)',
-              background: 'rgba(94, 210, 28, 0.15)',
-              color: '#207208',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}>
-              {(() => { const Icon = steps[step].icon; return <Icon size={18} />; })()}
+          {/* Step Header (Hidden during success screen) */}
+          {step < 3 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+              <div style={{
+                width: 38,
+                height: 38,
+                borderRadius: 'var(--radius-md)',
+                background: 'rgba(94, 210, 28, 0.15)',
+                color: '#207208',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                {(() => { const Icon = steps[step].icon; return <Icon size={18} />; })()}
+              </div>
+              <div>
+                <h2 style={{ fontSize: '16px', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-primary)', margin: 0 }}>
+                  {steps[step].title}
+                </h2>
+                <p style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', margin: '2px 0 0' }}>
+                  {t('onboarding.step')} {step + 1} {t('onboarding.of')} {steps.length}
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 style={{ fontSize: '16px', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-primary)', margin: 0 }}>
-                {steps[step].title}
-              </h2>
-              <p style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', margin: '2px 0 0' }}>
-                {t('onboarding.step')} {step + 1} {t('onboarding.of')} {steps.length}
-              </p>
-            </div>
-          </div>
+          )}
 
           {/* ==========================================================
-              STEP 0: LANGUAGE SELECTION
+              STEP 0: LANGUAGE SELECTION (First Step; Never reappears once authenticated)
               ========================================================== */}
           {step === 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -474,11 +454,11 @@ export default function Onboarding({ onComplete }) {
           )}
 
           {/* ==========================================================
-              STEP 1: ACCOUNT & CLOUD SYNC (GOOGLE OAUTH & EMAIL OTP)
+              STEP 1: GOOGLE & EMAIL SIGN IN (Strictly Required - Zero Guest Options)
               ========================================================== */}
           {step === 1 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {/* If user is already logged in */}
+              {/* Authenticated State Display */}
               {user ? (
                 <div style={{
                   padding: '18px 16px',
@@ -532,8 +512,8 @@ export default function Onboarding({ onComplete }) {
                   </div>
                   <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: 0 }}>
                     {lang === 'bn'
-                      ? 'আপনার অ্যাকাউন্টটি সফলভাবে সংযুক্ত রয়েছে। আপনার সমস্ত হিসাব স্বয়ংক্রিয়ভাবে ক্লাউডে ব্যাকআপ হবে।'
-                      : 'Your account is linked. All your finances will be encrypted and synced automatically in real time.'}
+                      ? 'আপনার অ্যাকাউন্টটি সফলভাবে সংযুক্ত রয়েছে। নিচের বাটনে ক্লিক করে প্রোফাইল সাজান।'
+                      : 'Your account is linked. Click Next below to set up your profile details.'}
                   </p>
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
                     <button
@@ -543,12 +523,12 @@ export default function Onboarding({ onComplete }) {
                       style={{ fontSize: '11px', color: 'var(--color-expense)', gap: 5, padding: '0 8px' }}
                     >
                       <LogOut size={12} />
-                      <span>{lang === 'bn' ? 'ভিন্ন অ্যাকাউন্টে সাইন ইন করুন' : 'Sign in with different account'}</span>
+                      <span>{lang === 'bn' ? 'ভিন্ন অ্যাকাউন্টে সাইন ইন' : 'Switch account'}</span>
                     </button>
                   </div>
                 </div>
               ) : (
-                /* Unauthenticated View: Google Sign In + Email OTP */
+                /* Unauthenticated View: Google Sign In + Email OTP Form */
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   <div style={{ textAlign: 'center', padding: '0 4px 4px' }}>
                     <p style={{ fontSize: '13.5px', color: 'var(--color-text-secondary)', margin: 0, lineHeight: 1.5 }}>
@@ -607,7 +587,7 @@ export default function Onboarding({ onComplete }) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '2px 0' }}>
                     <div style={{ flex: 1, height: 1, background: 'var(--color-border-light)' }} />
                     <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      {lang === 'bn' ? 'অথবা ইমেইল ওটিপি' : 'or email code'}
+                      {lang === 'bn' ? 'অথবা ইমেইল কোড' : 'or email code'}
                     </span>
                     <div style={{ flex: 1, height: 1, background: 'var(--color-border-light)' }} />
                   </div>
@@ -738,15 +718,13 @@ export default function Onboarding({ onComplete }) {
                       <span>{authSuccess}</span>
                     </div>
                   )}
-
-
                 </div>
               )}
             </div>
           )}
 
           {/* ==========================================================
-              STEP 2: PROFILE SETUP (DEVICE PHOTO UPLOAD + NAME *)
+              STEP 2: PROFILE SETUP (PHOTO UPLOAD & NAME)
               ========================================================== */}
           {step === 2 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -757,7 +735,7 @@ export default function Onboarding({ onComplete }) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 12,
-                padding: '16px 0 4px',
+                padding: '12px 0 4px',
               }}>
                 {/* Hidden File Input */}
                 <input
@@ -768,37 +746,41 @@ export default function Onboarding({ onComplete }) {
                   style={{ display: 'none' }}
                 />
 
-                {/* Avatar Preview Circle */}
+                {/* Avatar Preview Circle with Camera Button */}
                 <div
                   role="button"
                   tabIndex={0}
                   onClick={() => fileInputRef.current?.click()}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click(); }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      fileInputRef.current?.click();
+                    }
+                  }}
+                  title={lang === 'bn' ? 'ছবি পরিবর্তন করতে ক্লিক করুন' : 'Click to change photo'}
                   style={{
                     position: 'relative',
-                    width: 96,
-                    height: 96,
+                    width: 90,
+                    height: 90,
                     borderRadius: '50%',
                     cursor: 'pointer',
-                    boxShadow: '0 0 0 3px #5ED21C, 0 8px 25px rgba(94, 210, 28, 0.25)',
-                    background: 'var(--color-surface-secondary)',
-                    overflow: 'visible',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    outline: 'none',
                     transition: 'transform var(--transition-fast)',
                   }}
-                  title={lang === 'bn' ? 'ছবি আপলোড করতে ক্লিক করুন' : 'Click to upload photo'}
+                  onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.04)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
                 >
                   {profilePhoto ? (
                     <img
                       src={profilePhoto}
-                      alt="Profile"
+                      alt="Avatar"
                       style={{
                         width: '100%',
                         height: '100%',
                         borderRadius: '50%',
                         objectFit: 'cover',
+                        border: '3px solid #5ED21C',
+                        boxShadow: '0 4px 14px rgba(94, 210, 28, 0.25)',
                       }}
                     />
                   ) : (
@@ -806,93 +788,85 @@ export default function Onboarding({ onComplete }) {
                       width: '100%',
                       height: '100%',
                       borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #111411 0%, #2A302A 100%)',
+                      border: '3px solid #5ED21C',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      background: 'linear-gradient(135deg, #111411 0%, #2A302A 100%)',
-                      color: '#FFFFFF',
+                      color: '#5ED21C',
                       fontSize: '32px',
-                      fontWeight: 'var(--weight-black)',
+                      fontWeight: 'var(--weight-extrabold)',
+                      boxShadow: '0 4px 14px rgba(0, 0, 0, 0.15)',
                     }}>
-                      {(name.trim() || 'U').charAt(0).toUpperCase()}
+                      {name ? name.charAt(0).toUpperCase() : <User size={38} />}
                     </div>
                   )}
 
                   {/* Camera Action Badge */}
                   <div style={{
                     position: 'absolute',
-                    bottom: -2,
-                    right: -2,
-                    width: 30,
-                    height: 30,
+                    bottom: 0,
+                    right: 0,
+                    width: 28,
+                    height: 28,
                     borderRadius: '50%',
-                    backgroundColor: '#5ED21C',
-                    color: '#111411',
+                    background: '#111411',
+                    border: '2px solid #5ED21C',
+                    color: '#5ED21C',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.25)',
-                    border: '2px solid var(--color-surface)',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
                   }}>
-                    <Camera size={15} strokeWidth={2.5} />
+                    <Camera size={14} />
                   </div>
                 </div>
 
-                {/* Upload Action Label & Remove Option */}
+                {/* Upload Action Label & Remove Link */}
                 <div style={{ textAlign: 'center' }}>
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     style={{
-                      fontSize: '13px',
-                      fontWeight: 'var(--weight-bold)',
-                      color: 'var(--color-primary-dark)',
                       background: 'none',
                       border: 'none',
+                      color: 'var(--color-text-primary)',
+                      fontSize: '13px',
+                      fontWeight: 'var(--weight-semibold)',
                       cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
+                      padding: 0,
                     }}
                   >
-                    <Camera size={14} />
-                    <span>{profilePhoto ? (lang === 'bn' ? 'ছবি পরিবর্তন করুন' : 'Change Photo') : (lang === 'bn' ? 'ডিভাইস থেকে ছবি আপলোড করুন' : 'Upload Photo from Device')}</span>
+                    {profilePhoto
+                      ? (lang === 'bn' ? 'ছবি পরিবর্তন করুন' : 'Change Photo')
+                      : (lang === 'bn' ? 'প্রোফাইল ছবি আপলোড করুন' : 'Upload Profile Picture')}
                   </button>
-
                   {profilePhoto && (
-                    <div style={{ marginTop: 4 }}>
+                    <div>
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setProfilePhoto('');
-                          if (fileInputRef.current) fileInputRef.current.value = '';
-                        }}
+                        onClick={() => setProfilePhoto('')}
                         style={{
-                          fontSize: '11px',
-                          color: 'var(--color-expense)',
                           background: 'none',
                           border: 'none',
+                          color: 'var(--color-expense)',
+                          fontSize: '11px',
                           cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
+                          padding: '2px 0 0',
                         }}
                       >
-                        <Trash2 size={12} />
-                        <span>{lang === 'bn' ? 'ছবি মুছে ফেলুন' : 'Remove Photo'}</span>
+                        {lang === 'bn' ? 'ছবি মুছুন' : 'Remove Photo'}
                       </button>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Name Input (* in label, NO mandatory tag badge) */}
+              {/* Name Input Field */}
               <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" style={{ marginBottom: 6, fontWeight: 'var(--weight-bold)' }}>
-                  {lang === 'bn' ? 'আপনার নাম *' : 'What should we call you? *'}
+                <label className="form-label" style={{ fontWeight: 'var(--weight-bold)' }}>
+                  {t('onboarding.yourName')} <span style={{ color: 'var(--color-expense)' }}>*</span>
                 </label>
-
                 <input
                   ref={nameInputRef}
                   className="form-input"
@@ -900,7 +874,7 @@ export default function Onboarding({ onComplete }) {
                   value={name}
                   onChange={(e) => {
                     setName(e.target.value);
-                    if (e.target.value.trim()) setNameError('');
+                    if (nameError) setNameError('');
                   }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
@@ -917,7 +891,6 @@ export default function Onboarding({ onComplete }) {
                   autoFocus
                 />
 
-                {/* Inline Error Message */}
                 {nameError && (
                   <div style={{
                     display: 'flex',
@@ -927,7 +900,6 @@ export default function Onboarding({ onComplete }) {
                     color: '#DC2626',
                     fontSize: '12px',
                     fontWeight: 'var(--weight-medium)',
-                    animation: 'shake 0.3s ease',
                   }}>
                     <AlertCircle size={14} style={{ flexShrink: 0 }} />
                     <span>{nameError}</span>
@@ -938,258 +910,144 @@ export default function Onboarding({ onComplete }) {
           )}
 
           {/* ==========================================================
-              STEP 3: SETUP ACCOUNTS (AUTHENTIC BANGLADESH MFS & BANKS)
+              STEP 3: SUCCESS & WORKSPACE PREPARATION SCREEN (3.5 SECONDS)
               ========================================================== */}
           {step === 3 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', margin: 0 }}>
-                {lang === 'bn'
-                  ? 'আপনার ব্যাংক, বিকাশ, নগদ বা ক্যাশ ওয়ালেট যুক্ত করে সম্পদ পর্যবেক্ষণ শুরু করুন:'
-                  : 'Add your primary bank, bKash, Nagad or cash wallets to track your total net worth:'}
-              </p>
-
-              {/* Account Creator Form Box */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '24px 10px',
+              textAlign: 'center',
+              gap: 20,
+            }}>
+              {/* Animated Glowing Success Badge */}
               <div style={{
-                padding: 14,
-                background: 'var(--color-surface-secondary)',
-                borderRadius: 'var(--radius-lg)',
+                position: 'relative',
+                width: 76,
+                height: 76,
+                borderRadius: '50%',
+                background: 'rgba(94, 210, 28, 0.15)',
+                border: '2px solid #5ED21C',
                 display: 'flex',
-                flexDirection: 'column',
-                gap: 12,
-                border: '1px solid var(--color-border)',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#207208',
+                boxShadow: '0 0 30px rgba(94, 210, 28, 0.35)',
+                animation: 'pulse 1.8s infinite ease-in-out',
               }}>
-                {/* 3 Account Type Selector Tabs */}
-                <div className="toggle-group" style={{ width: '100%' }}>
-                  {[
-                    { id: 'mfs', label: lang === 'bn' ? 'মোবাইল ব্যাংকিং (MFS)' : 'MFS' },
-                    { id: 'bank', label: lang === 'bn' ? 'ব্যাংক (Bank)' : 'Bank' },
-                    { id: 'wallet', label: lang === 'bn' ? 'ক্যাশ ওয়ালেট' : 'Cash Wallet' },
-                  ].map((tab) => (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      className={`toggle-option ${accType === tab.id ? 'active' : ''}`}
-                      onClick={() => handleTypeChange(tab.id)}
-                      style={{ flex: 1, textAlign: 'center', fontSize: '12px', padding: '6px 4px' }}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Provider Selection Row with Brand Logo */}
-                <div>
-                  <label className="form-label" style={{ fontSize: '11px', fontWeight: 'var(--weight-bold)', marginBottom: 4 }}>
-                    {accType === 'mfs'
-                      ? (lang === 'bn' ? 'MFS প্রোভাইডার নির্বাচন করুন:' : 'Select MFS Provider:')
-                      : accType === 'bank'
-                      ? (lang === 'bn' ? 'ব্যাংক নির্বাচন করুন:' : 'Select Bank:')
-                      : (lang === 'bn' ? 'ক্যাশ ক্যাটাগরি:' : 'Wallet Type:')}
-                  </label>
-
-                  <div style={{ position: 'relative', width: '100%' }}>
-                    <select
-                        className="form-input form-select"
-                        value={selectedProviderId}
-                        onChange={handleProviderChange}
-                        style={{
-                          height: 42,
-                          paddingRight: 32,
-                          fontWeight: 'var(--weight-semibold)',
-                          background: 'var(--color-surface)',
-                        }}
-                      >
-                        {currentProviderList.map((prov) => (
-                          <option key={prov.id} value={prov.id}>
-                            {lang === 'bn' ? (prov.nameBn || prov.name) : prov.name}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown
-                        size={15}
-                        style={{
-                          position: 'absolute',
-                          right: 12,
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          pointerEvents: 'none',
-                          color: 'var(--color-text-tertiary)',
-                        }}
-                      />
-                    </div>
-                </div>
-
-                {/* Account Custom Label & Balance Inputs */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <div>
-                    <label className="form-label" style={{ fontSize: '11px', marginBottom: 4 }}>
-                      {lang === 'bn' ? 'অ্যাকাউন্টের নাম:' : 'Account Label:'}
-                    </label>
-                    <input
-                      className="form-input"
-                      type="text"
-                      value={accName}
-                      onChange={(e) => setAccName(e.target.value)}
-                      placeholder={accType === 'mfs' ? 'bKash Personal' : 'City Bank Salary'}
-                      style={{ height: 38, fontSize: '13px' }}
-                    />
-                  </div>
-
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                      <label className="form-label" style={{ fontSize: '11px', margin: 0 }}>
-                        {lang === 'bn' ? 'বর্তমান ব্যালেন্স (৳):' : 'Initial Balance (৳):'}
-                      </label>
-                      {accBalance && (
-                        <span style={{ fontSize: '11px', fontWeight: 'var(--weight-bold)', color: 'var(--color-primary-dark)' }}>
-                          {formatCurrency(Number(accBalance) || 0)}
-                        </span>
-                      )}
-                    </div>
-                    <input
-                      className="form-input"
-                      type="number"
-                      value={accBalance}
-                      onChange={(e) => setAccBalance(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddAccount();
-                        }
-                      }}
-                      placeholder="0"
-                      style={{ height: 38, fontSize: '13px' }}
-                    />
-                    <div className="quick-increment-chips">
-                      {[5000, 10000, 25000, 50000].map((amt) => (
-                        <button
-                          key={amt}
-                          type="button"
-                          className="quick-increment-chip"
-                          onClick={() => setAccBalance(String((Number(accBalance) || 0) + amt))}
-                        >
-                          +৳{(amt / 1000).toFixed(0)}k
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Add Account Button */}
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={handleAddAccount}
-                  style={{
-                    height: 38,
-                    fontSize: '12.5px',
-                    fontWeight: 'var(--weight-bold)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 6,
-                  }}
-                >
-                  <Plus size={15} strokeWidth={2.5} />
-                  <span>{lang === 'bn' ? '+ অ্যাকাউন্ট তালিকায় যোগ করুন' : '+ Add Account to List'}</span>
-                </button>
+                <Check size={38} strokeWidth={3} />
               </div>
 
-              {/* Added Accounts List */}
-              {accounts.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <label className="form-label" style={{ fontSize: '11.5px', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-secondary)', margin: 0 }}>
-                    {lang === 'bn' ? `যুক্তকৃত অ্যাকাউন্টসমূহ (${accounts.length}টি):` : `Added Accounts (${accounts.length}):`}
-                  </label>
+              {/* Title & Description */}
+              <div>
+                <h2 style={{
+                  fontSize: '20px',
+                  fontWeight: 'var(--weight-extrabold)',
+                  color: 'var(--color-text-primary)',
+                  margin: 0,
+                  letterSpacing: '-0.02em',
+                }}>
+                  {lang === 'bn' ? 'আপনার হিসাব প্রস্তুত হচ্ছে...' : 'Setting Up Your Workspace...'}
+                </h2>
+                <p style={{
+                  fontSize: '13px',
+                  color: 'var(--color-text-secondary)',
+                  margin: '8px auto 0',
+                  maxWidth: 360,
+                  lineHeight: 1.5,
+                }}>
+                  {lang === 'bn'
+                    ? 'ডাটাবেজ সিঙ্ক, পার্সোনাল ফাইন্যান্স ইঞ্জিন এবং ক্লাউড এনক্রিপশন প্রস্তুত হচ্ছে।'
+                    : 'Configuring encrypted storage, calibrating financial engine, and linking cloud database.'}
+                </p>
+              </div>
 
-                  {accounts.map((acc, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '10px 14px',
-                        borderRadius: 'var(--radius-md)',
-                        background: 'var(--color-surface-secondary)',
-                        border: '1px solid var(--color-border-light)',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: 'var(--radius-sm)',
-                          background: 'var(--color-surface)',
-                          border: '1px solid var(--color-border)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                        }}>
-                          <ProviderLogo providerId={acc.providerId} type={acc.type} size={20} />
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '13px', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-primary)' }}>
-                            {acc.name}
-                          </div>
-                          <div style={{ fontSize: '10px', color: 'var(--color-text-tertiary)', textTransform: 'uppercase' }}>
-                            {acc.type === 'mfs' ? 'MFS' : acc.type === 'bank' ? 'Bank' : 'Cash'}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <span style={{ fontSize: '14px', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-primary)' }}>
-                          ৳{Number(acc.balance).toLocaleString()}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveAccount(i)}
-                          title="Remove"
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: 'var(--color-expense)',
-                            cursor: 'pointer',
-                            padding: '4px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+              {/* Progress Bar Container */}
+              <div style={{ width: '100%', maxWidth: 360, marginTop: 4 }}>
+                <div style={{
+                  width: '100%',
+                  height: 8,
+                  borderRadius: 'var(--radius-full)',
+                  background: 'var(--color-border)',
+                  overflow: 'hidden',
+                }}>
+                  <div style={{
+                    width: `${progress}%`,
+                    height: '100%',
+                    background: 'linear-gradient(90deg, #5ED21C 0%, #207208 100%)',
+                    borderRadius: 'var(--radius-full)',
+                    transition: 'width 0.1s linear',
+                    boxShadow: '0 0 10px rgba(94, 210, 28, 0.5)',
+                  }} />
                 </div>
-              )}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  fontSize: '11px',
+                  color: 'var(--color-text-tertiary)',
+                  marginTop: 6,
+                  fontWeight: 'var(--weight-semibold)',
+                }}>
+                  <span>{lang === 'bn' ? 'অপেক্ষা করুন...' : 'Please wait...'}</span>
+                  <span>{progress}%</span>
+                </div>
+              </div>
+
+              {/* Sequential Checklist Badges */}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+                width: '100%',
+                maxWidth: 320,
+                textAlign: 'left',
+                fontSize: '12px',
+                color: 'var(--color-text-secondary)',
+                marginTop: 4,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: progress > 20 ? 1 : 0.4 }}>
+                  <CheckCircle2 size={14} style={{ color: '#5ED21C' }} />
+                  <span>{lang === 'bn' ? 'অ্যাকাউন্ট ভেরিফিকেশন সম্পন্ন' : 'Account authenticated & verified'}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: progress > 55 ? 1 : 0.4 }}>
+                  <CheckCircle2 size={14} style={{ color: '#5ED21C' }} />
+                  <span>{lang === 'bn' ? 'এনক্রিপ্টেড লোকাল ডাটাবেজ সক্রিয়' : 'Encrypted storage initialized'}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: progress > 85 ? 1 : 0.4 }}>
+                  <CheckCircle2 size={14} style={{ color: '#5ED21C' }} />
+                  <span>{lang === 'bn' ? 'আর্থিক ড্রাইভিং মোড প্রস্তুত' : 'Financial engine calibrated'}</span>
+                </div>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Navigation & Action Buttons */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginTop: 16,
-          gap: 12,
-        }}>
-          {step > 0 ? (
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => setStep(step - 1)}
-              style={{ fontSize: '13px' }}
-            >
-              {t('onboarding.back')}
-            </button>
-          ) : <div />}
+        {/* Navigation & Action Buttons (Hidden during success screen) */}
+        {step < 3 && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginTop: 16,
+            gap: 12,
+          }}>
+            {/* Back button (Only available on step 1 before signing in) */}
+            {step === 1 && !user ? (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setStep(0)}
+                style={{ fontSize: '13px' }}
+              >
+                {t('onboarding.back')}
+              </button>
+            ) : <div />}
 
-          {step < steps.length - 1 ? (
-            step === 1 && !user ? null : (
+            {/* Next / Continue Button */}
+            {/* On step 1, only show if user has authenticated */}
+            {step === 1 && !user ? null : (
               <button
                 type="button"
                 className="btn btn-primary"
@@ -1202,54 +1060,17 @@ export default function Onboarding({ onComplete }) {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
+                  cursor: 'pointer',
                 }}
               >
-                <span>{t('onboarding.next')}</span>
+                <span>
+                  {step === 2
+                    ? (lang === 'bn' ? 'সম্পন্ন করুন' : 'Finish Setup')
+                    : t('onboarding.next')}
+                </span>
                 <ArrowRight size={16} />
               </button>
-            )
-          ) : (
-            /* Step 2 Finish Button */
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => handleFinish(false)}
-              style={{
-                height: 46,
-                padding: '0 26px',
-                fontSize: '14px',
-                fontWeight: 'var(--weight-bold)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                cursor: 'pointer',
-              }}
-            >
-              <span>
-                {accounts.length > 0 || accBalance !== ''
-                  ? (lang === 'bn' ? 'সংরক্ষণ করুন ও ড্যাশবোর্ডে যান' : 'Save & Go to Dashboard')
-                  : (lang === 'bn' ? 'ড্যাশবোর্ডে প্রবেশ করুন' : 'Go to Dashboard')}
-              </span>
-              <Check size={16} strokeWidth={3} />
-            </button>
-          )}
-        </div>
-
-        {/* Skip Link for Step 3 */}
-        {step === 3 && (
-          <div style={{ textAlign: 'center', marginTop: 14 }}>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              style={{
-                fontSize: '12px',
-                color: 'var(--color-text-tertiary)',
-                textDecoration: 'underline',
-              }}
-              onClick={() => handleFinish(true)}
-            >
-              {lang === 'bn' ? 'আপাতত এড়িয়ে যান, পরে অ্যাকাউন্ট যোগ করব' : "Skip for now, I'll add accounts later"}
-            </button>
+            )}
           </div>
         )}
       </div>
