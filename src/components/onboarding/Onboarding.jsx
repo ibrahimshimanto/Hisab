@@ -671,6 +671,11 @@ export default function Onboarding({ onComplete }) {
                           {lang === 'bn' ? 'আবার কোড পাঠান' : 'Resend code'}
                         </button>
                       </div>
+                      <p style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)', margin: '4px 0 0', textAlign: 'center', lineHeight: 1.4 }}>
+                        {lang === 'bn'
+                          ? '💡 ইমেইল থেকে ৬-সংখ্যার কোডটি এখানে লিখুন, অথবা ইমেইলের সাইন-ইন লিংকে ক্লিক করেও সরাসরি লগইন করতে পারেন।'
+                          : '💡 Enter the 6-digit code from your email, or click the direct sign-in link in the email to log in instantly.'}
+                      </p>
                     </form>
                   )}
 
