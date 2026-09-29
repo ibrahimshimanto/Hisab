@@ -1,19 +1,46 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { I18nProvider } from './i18n/index.jsx';
 import useStore from './store/useStore.js';
 import Layout from './components/layout/Layout.jsx';
-import Onboarding from './components/onboarding/Onboarding.jsx';
-import Dashboard from './pages/Dashboard.jsx';
-import Accounts from './pages/Accounts.jsx';
-import Transactions from './pages/Transactions.jsx';
-import Budgets from './pages/Budgets.jsx';
-import Savings from './pages/Savings.jsx';
-import Analytics from './pages/Analytics.jsx';
-import Settings from './pages/Settings.jsx';
 import HisabLogo from './components/common/HisabLogo.jsx';
 import './index.css';
 import './styles/components.css';
+
+// Lazy-loaded pages for granular bundle splitting & performance
+const Onboarding = lazy(() => import('./components/onboarding/Onboarding.jsx'));
+const Dashboard = lazy(() => import('./pages/Dashboard.jsx'));
+const Accounts = lazy(() => import('./pages/Accounts.jsx'));
+const Transactions = lazy(() => import('./pages/Transactions.jsx'));
+const Budgets = lazy(() => import('./pages/Budgets.jsx'));
+const Savings = lazy(() => import('./pages/Savings.jsx'));
+const Analytics = lazy(() => import('./pages/Analytics.jsx'));
+const Settings = lazy(() => import('./pages/Settings.jsx'));
+
+function FullscreenLoadingFallback() {
+  return (
+    <div style={{
+      minHeight: '100vh',
+      minHeight: '100dvh',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 16,
+      background: 'var(--color-bg)',
+    }}>
+      <HisabLogo variant="charcoal" size={56} style={{ animation: 'pulse 1.5s infinite ease-in-out' }} />
+      <div style={{
+        fontSize: '13px',
+        color: 'var(--color-text-secondary)',
+        fontWeight: 'var(--weight-semibold)',
+        letterSpacing: '0.02em',
+      }}>
+        Hisab • হিসাব
+      </div>
+    </div>
+  );
+}
 
 function AppContent() {
   const {
@@ -41,36 +68,19 @@ function AppContent() {
 
   // 1. Cold start / checking session loading screen
   if (isAuthLoading) {
+    return <FullscreenLoadingFallback />;
+  }
+
+  // 2. If not authenticated or onboarding not completed yet: Show Onboarding directly
+  if (!user || !onboardingComplete) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        minHeight: '100dvh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 16,
-        background: 'var(--color-bg)',
-      }}>
-        <HisabLogo variant="charcoal" size={56} style={{ animation: 'pulse 1.5s infinite ease-in-out' }} />
-        <div style={{
-          fontSize: '13px',
-          color: 'var(--color-text-secondary)',
-          fontWeight: 'var(--weight-semibold)',
-          letterSpacing: '0.02em',
-        }}>
-          Hisab • হিসাব
-        </div>
-      </div>
+      <Suspense fallback={<FullscreenLoadingFallback />}>
+        <Onboarding />
+      </Suspense>
     );
   }
 
-  // 1. If not authenticated or onboarding not completed yet: Show Onboarding directly
-  if (!user || !onboardingComplete) {
-    return <Onboarding />;
-  }
-
-  // 4. Authenticated & Onboarded: Show Main App
+  // 3. Authenticated & Onboarded: Show Main App
   return (
     <BrowserRouter>
       <Routes>

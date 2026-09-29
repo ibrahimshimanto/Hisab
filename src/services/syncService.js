@@ -307,7 +307,7 @@ export async function uploadLocalDataToCloud(userId = null, state) {
       const profilePayload = {
         id: effectiveUserId,
         full_name: state.profile?.name || '',
-        email: state.user?.email || 'guest@hisab.app',
+        email: state.user?.email || '',
         avatar_url: state.profile?.avatar || null,
         monthly_salary: Number(state.profile?.monthlySalary) || 0,
         currency: state.settings?.currency || 'BDT',

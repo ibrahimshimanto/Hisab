@@ -1,0 +1,24 @@
+{
+  "name": "Hisab — Personal Finance",
+  "short_name": "Hisab",
+  "description": "Smart personal finance tracker with automated sync, multi-currency support, and intelligent financial modes.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111411",
+  "theme_color": "#111411",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/hisab-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

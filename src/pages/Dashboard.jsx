@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   TrendingUp,
@@ -32,10 +32,11 @@ import useStore from '../store/useStore.js';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
 import { Doughnut, Bar } from 'react-chartjs-2';
 import FinancialModeCard from '../components/modes/FinancialModeCard.jsx';
-import AiAdvisorModal from '../components/ai/AiAdvisorModal.jsx';
 import RecurringBillsSection from '../components/recurring/RecurringBillsSection.jsx';
 import { analyzeFinancialHealth } from '../utils/aiAdvisor.js';
 import { ProviderLogo } from '../lib/accountProviders.jsx';
+
+const AiAdvisorModal = lazy(() => import('../components/ai/AiAdvisorModal.jsx'));
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
@@ -1085,10 +1086,14 @@ export default function Dashboard() {
       </div>
 
       {/* AI Financial Advisor Modal */}
-      <AiAdvisorModal
-        isOpen={showAiModal}
-        onClose={() => setShowAiModal(false)}
-      />
+      {showAiModal && (
+        <Suspense fallback={null}>
+          <AiAdvisorModal
+            isOpen={showAiModal}
+            onClose={() => setShowAiModal(false)}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

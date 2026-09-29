@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://hisab-psi-eight.vercel.app/sitemap.xml

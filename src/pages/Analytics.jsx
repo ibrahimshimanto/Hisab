@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, lazy, Suspense } from 'react';
 import {
   Calendar as CalendarIcon, TrendingUp, TrendingDown, ArrowRightLeft, ArrowRight,
   PieChart as PieIcon, BarChart3, ChevronLeft, ChevronRight,
@@ -22,7 +22,8 @@ import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import { useTranslation } from '../i18n/index.jsx';
 import useStore from '../store/useStore.js';
 import RecurringBillsSection from '../components/recurring/RecurringBillsSection.jsx';
-import AiAdvisorModal from '../components/ai/AiAdvisorModal.jsx';
+
+const AiAdvisorModal = lazy(() => import('../components/ai/AiAdvisorModal.jsx'));
 
 ChartJS.register(
   CategoryScale,
@@ -932,10 +933,14 @@ export default function Analytics() {
       </div>
 
       {/* AI Financial Advisor Modal */}
-      <AiAdvisorModal
-        isOpen={showAiModal}
-        onClose={() => setShowAiModal(false)}
-      />
+      {showAiModal && (
+        <Suspense fallback={null}>
+          <AiAdvisorModal
+            isOpen={showAiModal}
+            onClose={() => setShowAiModal(false)}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }
