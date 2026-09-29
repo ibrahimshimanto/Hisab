@@ -17,9 +17,6 @@ import {
   Shield,
   CheckCircle2,
   HardDrive,
-  Cloud,
-  CloudOff,
-  RefreshCw,
   LogOut,
   Sliders,
   Camera,
@@ -58,8 +55,6 @@ export default function Settings() {
   const [avatar, setAvatar] = useState(profile?.avatar || '');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncSuccess, setSyncSuccess] = useState(false);
   const fileInputRef = useRef(null);
 
   const handlePhotoUpload = (e) => {
@@ -133,23 +128,6 @@ export default function Settings() {
     a.download = `hisab-backup-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  };
-
-  const handleManualSync = async () => {
-    if (isSyncing) return;
-    setIsSyncing(true);
-    setSyncSuccess(false);
-    try {
-      if (typeof syncToCloud === 'function') {
-        await syncToCloud();
-      }
-      setSyncSuccess(true);
-      setTimeout(() => setSyncSuccess(false), 2500);
-    } catch (err) {
-      console.error('Manual sync failed:', err);
-    } finally {
-      setIsSyncing(false);
-    }
   };
 
   const handleReset = () => {
@@ -509,113 +487,68 @@ export default function Settings() {
             </div>
           </div>
 
-          {/* Card 2: Cloud Sync & Data Management */}
+          {/* Card 2: Data Export & System */}
           <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             <div>
               <div className="settings-card-header">
                 <div>
-                  <h3 className="card-title">{lang === 'bn' ? 'ক্লাউড সিঙ্ক ও ডাটা ম্যানেজমেন্ট' : 'Cloud Sync & Data Storage'}</h3>
+                  <h3 className="card-title">{lang === 'bn' ? 'ডাটা ও সিস্টেম' : 'Data & System'}</h3>
                   <p className="card-subtitle" style={{ margin: '2px 0 0' }}>
-                    {lang === 'bn' ? 'Supabase ব্যাকআপ, মাল্টি-ডিভাইস সিঙ্ক ও লোকাল স্টোরেজ' : 'Supabase cloud backup, cross-device sync & local data'}
+                    {lang === 'bn' ? 'আপনার আর্থিক হিসাব এক্সপোর্ট ও ব্যাকআপ নিন' : 'Export your financial records & system details'}
                   </p>
                 </div>
-                <span
-                  style={{
-                    fontSize: '11px',
-                    fontWeight: 'var(--weight-bold)',
-                    color: '#207208',
-                    backgroundColor: 'rgba(94, 210, 28, 0.15)',
-                    padding: '3px 9px',
-                    borderRadius: 'var(--radius-full)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 5,
-                    border: '1px solid rgba(94, 210, 28, 0.3)',
-                  }}
-                >
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#5ED21C', boxShadow: '0 0 6px #5ED21C' }} />
-                  <Cloud size={12} />
-                  <span>{lang === 'bn' ? 'অনলাইন ও সিঙ্কড' : 'Online & Synced'}</span>
-                </span>
+                {user && (
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 'var(--weight-semibold)',
+                      color: 'var(--color-text-secondary)',
+                      backgroundColor: 'var(--color-surface-secondary)',
+                      padding: '3px 10px',
+                      borderRadius: 'var(--radius-full)',
+                      border: '1px solid var(--color-border)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <User size={12} style={{ color: '#5ED21C' }} />
+                    <span style={{ maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</span>
+                  </span>
+                )}
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                {/* Cloud Sync Account Banner */}
-                <div
-                  style={{
-                    padding: '12px 14px',
-                    borderRadius: 'var(--radius-lg)',
-                    background: 'rgba(94, 210, 28, 0.08)',
-                    border: '1px solid rgba(94, 210, 28, 0.25)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: 10,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                    <div
-                      style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 'var(--radius-md)',
-                        background: 'rgba(94, 210, 28, 0.18)',
-                        color: '#5ED21C',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <Cloud size={18} />
-                    </div>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: '13px', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-primary)' }}>
-                        {user ? user.email : (lang === 'bn' ? 'সরাসরি ক্লাউড সিঙ্ক সক্রিয়' : 'Automatic Cloud Sync Active')}
-                      </div>
-                      <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: 1 }}>
-                        {user
-                          ? (lang === 'bn' ? 'সরাসরি রিয়েল-টাইম ক্লাউড ব্যাকআপ চলছে' : 'Encrypted cloud backup linked to account')
-                          : (lang === 'bn' ? 'Supabase ব্যাকএন্ডে রিয়েল-টাইম অটোমেটিক সিঙ্ক চলছে' : 'Auto-syncing in real-time with Supabase Cloud')}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={handleManualSync}
-                      disabled={isSyncing}
-                      style={{ gap: 5, fontSize: '11px', height: 32 }}
-                    >
-                      <RefreshCw size={12} className={isSyncing ? 'animate-spin' : ''} />
-                      <span>{syncSuccess ? (lang === 'bn' ? 'সিঙ্কড!' : 'Synced!') : (lang === 'bn' ? 'সিঙ্ক করুন' : 'Sync Now')}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => setAuthModalOpen(true)}
-                      style={{ fontSize: '11px', height: 32, padding: '0 8px' }}
-                    >
-                      <span>{user ? (lang === 'bn' ? 'ম্যানেজ' : 'Manage') : (lang === 'bn' ? 'অ্যাকাউন্ট' : 'Account')}</span>
-                    </button>
-                  </div>
+              {/* Export Data */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--space-2) 0' }}>
+                <div>
+                  <p style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--weight-medium)', margin: 0 }}>{t('settings.exportData')}</p>
+                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)', margin: '2px 0 0' }}>{t('settings.exportDataDesc')}</p>
                 </div>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={handleExport} style={{ gap: 6 }}>
+                  <Download size={14} />
+                  <span>{t('transactions.exportCSV')}</span>
+                </button>
+              </div>
 
-                {/* Export Data */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--space-3) 0' }}>
+              {/* Sign out if logged in */}
+              {user && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--space-3) 0 0', marginTop: 'var(--space-2)', borderTop: '1px dashed var(--color-border-light)' }}>
                   <div>
-                    <p style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--weight-medium)', margin: 0 }}>{t('settings.exportData')}</p>
-                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)', margin: '2px 0 0' }}>{t('settings.exportDataDesc')}</p>
+                    <p style={{ fontSize: '12px', fontWeight: 'var(--weight-medium)', color: 'var(--color-text-secondary)', margin: 0 }}>
+                      {lang === 'bn' ? 'বর্তমান সেশন থেকে লগআউট' : 'Sign out of current account'}
+                    </p>
                   </div>
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={handleExport} style={{ gap: 6 }}>
-                    <Download size={14} />
-                    <span>{t('transactions.exportCSV')}</span>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={signOut}
+                    style={{ gap: 5, fontSize: '11.5px', color: 'var(--color-expense)', height: 30 }}
+                  >
+                    <LogOut size={13} />
+                    <span>{lang === 'bn' ? 'লগআউট' : 'Sign Out'}</span>
                   </button>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Hisab Brand & System Footer */}
@@ -633,7 +566,7 @@ export default function Settings() {
                 </div>
               </div>
               <span className="badge badge-income" style={{ fontSize: '10px', fontWeight: 'var(--weight-bold)', padding: '3px 8px' }}>
-                CLOUD SYNC ACTIVE
+                ONLINE ACTIVE
               </span>
             </div>
           </div>

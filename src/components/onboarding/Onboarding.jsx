@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Globe,
   User,
@@ -10,10 +10,18 @@ import {
   Camera,
   Trash2,
   ChevronDown,
+  ShieldCheck,
+  Mail,
+  LogOut,
+  RefreshCw,
+  KeyRound,
+  CheckCircle2,
+  Sparkles,
 } from 'lucide-react';
 import { useTranslation } from '../../i18n/index.jsx';
 import useStore from '../../store/useStore.js';
 import HisabLogo from '../common/HisabLogo.jsx';
+import { getSupabase, isSupabaseConfigured } from '../../lib/supabase.js';
 import {
   MFS_PROVIDERS,
   BANK_PROVIDERS,
@@ -23,9 +31,25 @@ import {
 
 export default function Onboarding({ onComplete }) {
   const { t, lang, changeLanguage } = useTranslation();
-  const { initializeOnboardingAccounts, updateProfile, setFinancialMode, completeOnboarding, syncToCloud, user } = useStore();
+  const {
+    initializeOnboardingAccounts,
+    updateProfile,
+    setFinancialMode,
+    completeOnboarding,
+    syncToCloud,
+    user,
+    signOut,
+  } = useStore();
 
   const [step, setStep] = useState(0);
+
+  // Authentication State
+  const [authEmail, setAuthEmail] = useState('');
+  const [authOtpCode, setAuthOtpCode] = useState('');
+  const [authStep, setAuthStep] = useState('input'); // 'input' | 'otp'
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState('');
+  const [authSuccess, setAuthSuccess] = useState('');
 
   // Profile Step State
   const initialName = user?.user_metadata?.full_name || (user?.email ? user.email.split('@')[0] : '');
@@ -43,11 +67,114 @@ export default function Onboarding({ onComplete }) {
   const nameInputRef = useRef(null);
   const fileInputRef = useRef(null);
 
+  // Automatically adapt name & avatar if user logs in during onboarding
+  useEffect(() => {
+    if (user) {
+      const googleName = user.user_metadata?.full_name || (user.email ? user.email.split('@')[0] : '');
+      const googleAvatar = user.user_metadata?.avatar_url || '';
+      if (googleName && !name) setName(googleName);
+      if (googleAvatar && !profilePhoto) setProfilePhoto(googleAvatar);
+    }
+  }, [user]);
+
   const steps = [
     { icon: Globe, title: t('onboarding.selectLanguage') },
+    { icon: ShieldCheck, title: lang === 'bn' ? 'সাইন ইন / ক্লাউড অ্যাকাউন্ট' : 'Sign In / Account' },
     { icon: User, title: lang === 'bn' ? 'প্রোফাইল সাজান' : 'Setup Profile' },
     { icon: Wallet, title: t('onboarding.setupAccounts') },
   ];
+
+  // Handle Google OAuth Sign In
+  const handleGoogleSignIn = async () => {
+    const supabase = getSupabase();
+    if (!supabase || !isSupabaseConfigured()) {
+      setAuthError(lang === 'bn' ? 'Supabase কনফিগারেশন পাওয়া যায়নি।' : 'Supabase configuration not found.');
+      return;
+    }
+    setAuthLoading(true);
+    setAuthError('');
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+      if (error) throw error;
+    } catch (err) {
+      console.error('Google sign in error:', err);
+      setAuthError(err.message || 'Failed to start Google sign in');
+      setAuthLoading(false);
+    }
+  };
+
+  // Handle Send Email OTP
+  const handleSendEmailOtp = async (e) => {
+    e?.preventDefault();
+    if (!authEmail || !authEmail.includes('@')) {
+      setAuthError(lang === 'bn' ? 'অনুগ্রহ করে একটি সঠিক ইমেল অ্যাড্রেস লিখুন।' : 'Please enter a valid email address.');
+      return;
+    }
+    const supabase = getSupabase();
+    if (!supabase || !isSupabaseConfigured()) {
+      setAuthError(lang === 'bn' ? 'Supabase কনফিগারেশন পাওয়া যায়নি।' : 'Supabase configuration not found.');
+      return;
+    }
+    setAuthLoading(true);
+    setAuthError('');
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: authEmail.trim(),
+        options: {
+          emailRedirectTo: window.location.origin,
+        },
+      });
+      if (error) throw error;
+      setAuthStep('otp');
+      setAuthSuccess(
+        lang === 'bn'
+          ? `${authEmail} এ ৬-সংখ্যার লগইন কোড পাঠানো হয়েছে!`
+          : `A 6-digit login code has been sent to ${authEmail}!`
+      );
+    } catch (err) {
+      console.error('Send OTP error:', err);
+      setAuthError(err.message || 'Failed to send login code');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  // Handle Verify Email OTP
+  const handleVerifyEmailOtp = async (e) => {
+    e?.preventDefault();
+    if (!authOtpCode || authOtpCode.trim().length < 6) {
+      setAuthError(lang === 'bn' ? 'অনুগ্রহ করে ৬-সংখ্যার কোডটি প্রবেশ করান।' : 'Please enter the 6-digit code.');
+      return;
+    }
+    const supabase = getSupabase();
+    if (!supabase) return;
+    setAuthLoading(true);
+    setAuthError('');
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: authEmail.trim(),
+        token: authOtpCode.trim(),
+        type: 'email',
+      });
+      if (error) throw error;
+      setAuthSuccess(lang === 'bn' ? 'সফলভাবে সাইন ইন সম্পন্ন হয়েছে!' : 'Successfully signed in!');
+      const userMeta = data?.user?.user_metadata;
+      if (userMeta?.full_name && !name) setName(userMeta.full_name);
+      setTimeout(() => {
+        setStep(2); // move to profile step
+      }, 700);
+    } catch (err) {
+      console.error('Verify OTP error:', err);
+      setAuthError(err.message || 'Invalid or expired code');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
 
   // Handle Photo Upload from Device with client-side canvas compression for smooth storage
   const handlePhotoUpload = (e) => {
@@ -89,7 +216,8 @@ export default function Onboarding({ onComplete }) {
   };
 
   const handleNextStep = () => {
-    if (step === 1) {
+    // Step 2 is Profile Step
+    if (step === 2) {
       if (!name.trim()) {
         setNameError(
           lang === 'bn'
@@ -337,9 +465,301 @@ export default function Onboarding({ onComplete }) {
           )}
 
           {/* ==========================================================
-              STEP 1: PROFILE SETUP (DEVICE PHOTO UPLOAD + NAME *)
+              STEP 1: ACCOUNT & CLOUD SYNC (GOOGLE OAUTH & EMAIL OTP)
               ========================================================== */}
           {step === 1 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* If user is already logged in */}
+              {user ? (
+                <div style={{
+                  padding: '18px 16px',
+                  borderRadius: 'var(--radius-lg)',
+                  background: 'rgba(94, 210, 28, 0.08)',
+                  border: '1.5px solid rgba(94, 210, 28, 0.35)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 12,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '50%',
+                        background: '#111411',
+                        border: '1.5px solid #5ED21C',
+                        color: '#5ED21C',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 'bold',
+                        fontSize: 16,
+                      }}>
+                        {user.email ? user.email.charAt(0).toUpperCase() : 'U'}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '14px', fontWeight: 'var(--weight-bold)', color: 'var(--color-text-primary)' }}>
+                          {user.user_metadata?.full_name || user.email}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>
+                          {user.email}
+                        </div>
+                      </div>
+                    </div>
+                    <span style={{
+                      fontSize: '11px',
+                      fontWeight: 'var(--weight-bold)',
+                      color: '#207208',
+                      background: 'rgba(94, 210, 28, 0.18)',
+                      padding: '3px 9px',
+                      borderRadius: 'var(--radius-full)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}>
+                      <CheckCircle2 size={12} />
+                      <span>{lang === 'bn' ? 'সংযুক্ত' : 'Connected'}</span>
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: 0 }}>
+                    {lang === 'bn'
+                      ? 'আপনার অ্যাকাউন্টটি সফলভাবে সংযুক্ত রয়েছে। আপনার সমস্ত হিসাব স্বয়ংক্রিয়ভাবে ক্লাউডে ব্যাকআপ হবে।'
+                      : 'Your account is linked. All your finances will be encrypted and synced automatically in real time.'}
+                  </p>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={signOut}
+                      style={{ fontSize: '11px', color: 'var(--color-expense)', gap: 5, padding: '0 8px' }}
+                    >
+                      <LogOut size={12} />
+                      <span>{lang === 'bn' ? 'ভিন্ন অ্যাকাউন্টে সাইন ইন করুন' : 'Sign in with different account'}</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Unauthenticated View: Google Sign In + Email OTP */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{ textAlign: 'center', padding: '0 4px 4px' }}>
+                    <p style={{ fontSize: '13.5px', color: 'var(--color-text-secondary)', margin: 0, lineHeight: 1.5 }}>
+                      {lang === 'bn'
+                        ? 'আপনার হিসাব সুরক্ষিত রাখতে এবং যেকোনো ডিভাইস থেকে অটো-সিঙ্ক করতে সাইন ইন করুন:'
+                        : 'Sign in to sync your finances in real time and backup your data securely across all devices:'}
+                    </p>
+                  </div>
+
+                  {/* 1-Click Google Sign In Button */}
+                  <button
+                    type="button"
+                    onClick={handleGoogleSignIn}
+                    disabled={authLoading}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 12,
+                      width: '100%',
+                      height: 48,
+                      borderRadius: 'var(--radius-lg)',
+                      border: '1.5px solid var(--color-border)',
+                      background: 'var(--color-surface)',
+                      color: 'var(--color-text-primary)',
+                      fontSize: '14px',
+                      fontWeight: 'var(--weight-semibold)',
+                      fontFamily: 'inherit',
+                      cursor: authLoading ? 'not-allowed' : 'pointer',
+                      transition: 'all var(--transition-fast)',
+                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = '#5ED21C';
+                      e.currentTarget.style.boxShadow = '0 2px 10px rgba(94, 210, 28, 0.12)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--color-border)';
+                      e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.04)';
+                    }}
+                  >
+                    {authLoading ? (
+                      <RefreshCw size={18} className="animate-spin" style={{ color: '#5ED21C' }} />
+                    ) : (
+                      <svg width="20" height="20" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z" />
+                        <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.24v3.15C3.26 21.36 7.33 24 12 24z" />
+                        <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.24C.45 8.15 0 9.99 0 12s.45 3.85 1.24 5.42l4.04-3.15z" />
+                        <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.24 6.58l4.04 3.15c.95-2.83 3.6-4.98 6.72-4.98z" />
+                      </svg>
+                    )}
+                    <span>{lang === 'bn' ? 'গুগল দিয়ে সাইন ইন করুন' : 'Continue with Google'}</span>
+                  </button>
+
+                  {/* Clean Divider */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '2px 0' }}>
+                    <div style={{ flex: 1, height: 1, background: 'var(--color-border-light)' }} />
+                    <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      {lang === 'bn' ? 'অথবা ইমেইল ওটিপি' : 'or email code'}
+                    </span>
+                    <div style={{ flex: 1, height: 1, background: 'var(--color-border-light)' }} />
+                  </div>
+
+                  {/* Email OTP Form */}
+                  {authStep === 'input' ? (
+                    <form onSubmit={handleSendEmailOtp} style={{ display: 'flex', gap: 8 }}>
+                      <div style={{ position: 'relative', flex: 1 }}>
+                        <Mail
+                          size={16}
+                          style={{
+                            position: 'absolute',
+                            left: 14,
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            color: 'var(--color-text-tertiary)',
+                            pointerEvents: 'none',
+                          }}
+                        />
+                        <input
+                          type="email"
+                          className="form-input"
+                          value={authEmail}
+                          onChange={(e) => setAuthEmail(e.target.value)}
+                          placeholder={lang === 'bn' ? 'আপনার ইমেইল অ্যাড্রেস...' : 'Enter your email...'}
+                          style={{ paddingLeft: 38, height: 44 }}
+                          disabled={authLoading}
+                          autoComplete="email"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        className="btn btn-secondary"
+                        disabled={authLoading || !authEmail.trim()}
+                        style={{ height: 44, padding: '0 16px', fontSize: '13px', whiteSpace: 'nowrap', gap: 6 }}
+                      >
+                        {authLoading ? (
+                          <RefreshCw size={14} className="animate-spin" />
+                        ) : (
+                          <KeyRound size={14} />
+                        )}
+                        <span>{lang === 'bn' ? 'কোড পাঠান' : 'Send Code'}</span>
+                      </button>
+                    </form>
+                  ) : (
+                    /* OTP Verification Box */
+                    <form onSubmit={handleVerifyEmailOtp} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={authOtpCode}
+                          onChange={(e) => setAuthOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                          placeholder="000000"
+                          maxLength={6}
+                          style={{
+                            height: 44,
+                            fontSize: '18px',
+                            letterSpacing: '0.25em',
+                            textAlign: 'center',
+                            fontWeight: 'bold',
+                            flex: 1,
+                          }}
+                          disabled={authLoading}
+                          autoFocus
+                        />
+                        <button
+                          type="submit"
+                          className="btn btn-primary"
+                          disabled={authLoading || authOtpCode.length < 6}
+                          style={{ height: 44, padding: '0 18px', fontSize: '13px', whiteSpace: 'nowrap', gap: 6 }}
+                        >
+                          {authLoading ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}
+                          <span>{lang === 'bn' ? 'যাচাই করুন' : 'Verify'}</span>
+                        </button>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11.5px' }}>
+                        <button
+                          type="button"
+                          onClick={() => { setAuthStep('input'); setAuthError(''); setAuthSuccess(''); }}
+                          style={{ background: 'none', border: 'none', color: 'var(--color-text-tertiary)', cursor: 'pointer', padding: 0 }}
+                        >
+                          {lang === 'bn' ? '← ইমেইল পরিবর্তন' : '← Change email'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSendEmailOtp}
+                          disabled={authLoading}
+                          style={{ background: 'none', border: 'none', color: '#5ED21C', cursor: 'pointer', padding: 0, fontWeight: 'var(--weight-medium)' }}
+                        >
+                          {lang === 'bn' ? 'আবার কোড পাঠান' : 'Resend code'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {/* Feedback Messages */}
+                  {authError && (
+                    <div style={{
+                      padding: '8px 12px',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                      color: 'var(--color-expense)',
+                      fontSize: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}>
+                      <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                      <span>{authError}</span>
+                    </div>
+                  )}
+
+                  {authSuccess && (
+                    <div style={{
+                      padding: '8px 12px',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'rgba(94, 210, 28, 0.1)',
+                      border: '1px solid rgba(94, 210, 28, 0.25)',
+                      color: '#207208',
+                      fontSize: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}>
+                      <CheckCircle2 size={14} style={{ flexShrink: 0 }} />
+                      <span>{authSuccess}</span>
+                    </div>
+                  )}
+
+                  {/* Continue as Guest option */}
+                  <div style={{ textAlign: 'center', paddingTop: 6 }}>
+                    <button
+                      type="button"
+                      onClick={() => setStep(2)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--color-text-tertiary)',
+                        fontSize: '12.5px',
+                        cursor: 'pointer',
+                        padding: '6px 12px',
+                        borderRadius: 'var(--radius-md)',
+                        transition: 'all var(--transition-fast)',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text-primary)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-tertiary)'; }}
+                    >
+                      {lang === 'bn' ? 'সাইন ইন ছাড়া চালিয়ে যান (গেস্ট মোড) →' : 'Continue as Guest (Offline Mode) →'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ==========================================================
+              STEP 2: PROFILE SETUP (DEVICE PHOTO UPLOAD + NAME *)
+              ========================================================== */}
+          {step === 2 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               {/* Profile Photo Upload Center */}
               <div style={{
@@ -529,9 +949,9 @@ export default function Onboarding({ onComplete }) {
           )}
 
           {/* ==========================================================
-              STEP 2: SETUP ACCOUNTS (AUTHENTIC BANGLADESH MFS & BANKS)
+              STEP 3: SETUP ACCOUNTS (AUTHENTIC BANGLADESH MFS & BANKS)
               ========================================================== */}
-          {step === 2 && (
+          {step === 3 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', margin: 0 }}>
                 {lang === 'bn'
@@ -824,8 +1244,8 @@ export default function Onboarding({ onComplete }) {
           )}
         </div>
 
-        {/* Skip Link for Step 2 */}
-        {step === 2 && (
+        {/* Skip Link for Step 3 */}
+        {step === 3 && (
           <div style={{ textAlign: 'center', marginTop: 14 }}>
             <button
               type="button"
