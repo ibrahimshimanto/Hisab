@@ -91,7 +91,7 @@ export default function SavingsDepositModal() {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <form id="deposit-modal-form" onSubmit={handleSubmit} className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {/* Amount input */}
           <div className="form-group">
             <label className="form-label" htmlFor="deposit-amount">
@@ -165,23 +165,24 @@ export default function SavingsDepositModal() {
               placeholder={isDeposit ? 'Monthly installment' : 'Maturity redemption'}
             />
           </div>
-
-          {/* Modal Footer */}
-          <div className="modal-footer" style={{ padding: 0, marginTop: 6 }}>
-            <button type="button" className="btn btn-secondary" onClick={closeDepositModal}>
-              {t('common.cancel')}
-            </button>
-            <button
-              type="submit"
-              className={`btn ${isDeposit ? 'btn-lime' : 'btn-primary'}`}
-              disabled={!amount || Number(amount) <= 0}
-            >
-              {isDeposit
-                ? (lang === 'bn' ? 'জমা নিশ্চিত করুন' : 'Confirm Deposit')
-                : (lang === 'bn' ? 'উত্তোলন নিশ্চিত করুন' : 'Confirm Withdrawal')}
-            </button>
-          </div>
         </form>
+
+        {/* Modal Footer */}
+        <div className="modal-footer">
+          <button type="button" className="btn btn-secondary" onClick={closeDepositModal}>
+            {t('common.cancel')}
+          </button>
+          <button
+            type="submit"
+            form="deposit-modal-form"
+            className={`btn ${isDeposit ? 'btn-lime' : 'btn-primary'}`}
+            disabled={!amount || Number(amount) <= 0}
+          >
+            {isDeposit
+              ? (lang === 'bn' ? 'জমা নিশ্চিত করুন' : 'Confirm Deposit')
+              : (lang === 'bn' ? 'উত্তোলন নিশ্চিত করুন' : 'Confirm Withdrawal')}
+          </button>
+        </div>
       </div>
     </div>,
     document.body

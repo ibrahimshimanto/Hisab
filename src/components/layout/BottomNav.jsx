@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Home, Wallet, ArrowLeftRight, Target, BarChart3 } from 'lucide-react';
 import { useTranslation } from '../../i18n/index.jsx';
@@ -6,8 +7,32 @@ import useStore from '../../store/useStore.js';
 export default function BottomNav() {
   const { lang } = useTranslation();
   const { quickAddModal, savingsModal, depositModal, calculatorModal, voiceModal, isTourOpen, authModalOpen } = useStore();
+  const [hasDomModal, setHasDomModal] = useState(false);
+
+  useEffect(() => {
+    const checkModalInDom = () => {
+      const isModalPresent =
+        (typeof document !== 'undefined') &&
+        (document.body.classList.contains('modal-open') || Boolean(document.querySelector('.modal-backdrop')));
+      setHasDomModal(Boolean(isModalPresent));
+    };
+
+    checkModalInDom();
+
+    if (typeof MutationObserver !== 'undefined' && typeof document !== 'undefined') {
+      const observer = new MutationObserver(checkModalInDom);
+      observer.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class'],
+        childList: true,
+        subtree: true,
+      });
+      return () => observer.disconnect();
+    }
+  }, []);
 
   const isStoreModalOpen =
+    hasDomModal ||
     Boolean(quickAddModal?.isOpen) ||
     Boolean(savingsModal?.isOpen) ||
     Boolean(depositModal?.isOpen) ||

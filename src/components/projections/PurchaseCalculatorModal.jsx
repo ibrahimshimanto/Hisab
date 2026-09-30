@@ -241,18 +241,7 @@ export default function PurchaseCalculatorModal() {
         </div>
 
         {/* Action Footer */}
-        <div
-          className="modal-footer"
-          style={{
-            padding: 'var(--space-4) var(--space-6)',
-            borderTop: 'none',
-            background: 'var(--glass-bg-elevated)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-            gap: 'var(--space-3)',
-          }}
-        >
+        <div className="modal-footer">
           <button type="button" className="btn btn-secondary" onClick={closeCalculatorModal}>
             {t('common.close')}
           </button>

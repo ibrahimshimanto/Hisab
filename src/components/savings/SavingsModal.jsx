@@ -148,7 +148,7 @@ export default function SavingsModal() {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <form id="savings-scheme-form" onSubmit={handleSubmit} className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Scheme Type Selector */}
           <div>
             <label className="form-label">{t('savings.goalType')}</label>
@@ -331,17 +331,17 @@ export default function SavingsModal() {
               style={{ cursor: 'pointer', width: 16, height: 16 }}
             />
           </div>
-
-          {/* Modal Footer */}
-          <div className="modal-footer" style={{ marginTop: 8, padding: 0 }}>
-            <button type="button" className="btn btn-secondary" onClick={closeSavingsModal}>
-              {t('common.cancel')}
-            </button>
-            <button type="submit" className="btn btn-lime">
-              {editGoal ? t('common.save') : (lang === 'bn' ? 'স্কিম সংরক্ষণ করুন' : 'Create Scheme')}
-            </button>
-          </div>
         </form>
+
+        {/* Modal Footer */}
+        <div className="modal-footer">
+          <button type="button" className="btn btn-secondary" onClick={closeSavingsModal}>
+            {t('common.cancel')}
+          </button>
+          <button type="submit" form="savings-scheme-form" className="btn btn-lime">
+            {editGoal ? t('common.save') : (lang === 'bn' ? 'স্কিম সংরক্ষণ করুন' : 'Create Scheme')}
+          </button>
+        </div>
       </div>
     </div>,
     document.body

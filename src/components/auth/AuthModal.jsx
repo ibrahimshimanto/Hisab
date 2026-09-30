@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Cloud,
   CloudCheck,
@@ -28,6 +29,7 @@ import {
   clearCustomSupabaseConfig,
 } from '../../lib/supabase.js';
 import { getMailProvider } from '../../lib/mailProvider.js';
+import { lockBodyScroll, unlockBodyScroll } from '../../utils/modalHelper.js';
 
 export default function AuthModal() {
   const { lang, t } = useTranslation();
@@ -82,12 +84,16 @@ export default function AuthModal() {
 
   useEffect(() => {
     if (authModalOpen) {
+      lockBodyScroll();
       setErrorMsg('');
       setSuccessMsg('');
       setStep('input');
       const conf = getSupabaseConfig();
       setCustomUrl(conf.url || '');
       setCustomKey(conf.anonKey || '');
+      return () => {
+        unlockBodyScroll();
+      };
     }
   }, [authModalOpen]);
 
@@ -196,25 +202,16 @@ export default function AuthModal() {
     setErrorMsg('');
   };
 
-  return (
-    <div className="modal-backdrop" onClick={handleClose} style={{ zIndex: 10000 }}>
+  return createPortal(
+    <div className="modal-backdrop animate-fade-in" onClick={handleClose}>
       <div
-        className="modal-container auth-modal-container"
+        className="modal auth-modal-container animate-scale-in"
         onClick={(e) => e.stopPropagation()}
-        style={{
-          maxWidth: 480,
-          width: '92%',
-          background: 'var(--color-surface)',
-          borderRadius: 'var(--radius-xl)',
-          boxShadow: '0 24px 64px rgba(0, 0, 0, 0.28), 0 0 0 1px var(--color-border)',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          maxHeight: '90vh',
-        }}
+        style={{ maxWidth: 480 }}
       >
         {/* Header with Luxury Emerald Accent */}
         <div
+          className="modal-header"
           style={{
             padding: '24px 24px 18px',
             borderBottom: '1px solid var(--color-border-light)',
@@ -305,11 +302,9 @@ export default function AuthModal() {
 
         {/* Modal Body */}
         <div
+          className="modal-body auth-modal-body"
           style={{
-            padding: '20px 24px',
-            overflowY: 'auto',
-            display: 'flex',
-            flexDirection: 'column',
+            minHeight: 0,
             gap: 18,
           }}
         >
@@ -978,16 +973,7 @@ export default function AuthModal() {
         </div>
 
         {/* Footer */}
-        <div
-          style={{
-            padding: '14px 24px',
-            borderTop: '1px solid var(--color-border-light)',
-            background: 'var(--color-surface-secondary)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
+        <div className="modal-footer auth-modal-footer">
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', color: 'var(--color-text-secondary)' }}>
             <CheckCircle2 size={13} style={{ color: '#5ED21C' }} />
             <span>Online: Supabase Cloud Synced</span>
@@ -997,12 +983,13 @@ export default function AuthModal() {
             type="button"
             onClick={handleClose}
             className="btn btn-ghost btn-sm"
-            style={{ fontSize: '12px' }}
+            style={{ fontSize: '12px', minWidth: 80 }}
           >
             {lang === 'bn' ? 'বন্ধ করুন' : 'Close'}
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
