@@ -55,8 +55,9 @@ export default function SavingsDepositModal() {
       <div
         className="modal modal-sm animate-scale-in"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 440, borderRadius: 'var(--radius-2xl)' }}
+        style={{ maxWidth: 440 }}
       >
+        <div className="modal-grab-handle" />
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div

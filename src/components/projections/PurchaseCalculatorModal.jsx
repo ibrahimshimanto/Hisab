@@ -109,8 +109,9 @@ export default function PurchaseCalculatorModal() {
       <div
         className="modal modal-md animate-scale-in"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 520, borderRadius: '28px', border: 'none', boxShadow: 'none' }}
+        style={{ maxWidth: 520 }}
       >
+        <div className="modal-grab-handle" />
         {/* Header */}
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

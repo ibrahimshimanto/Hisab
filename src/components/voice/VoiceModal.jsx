@@ -271,6 +271,7 @@ export default function VoiceModal() {
         tabIndex={-1}
         style={{ maxWidth: 520 }}
       >
+        <div className="modal-grab-handle" />
         {/* Modal Header */}
         <div className="voice-modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

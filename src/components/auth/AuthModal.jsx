@@ -209,6 +209,7 @@ export default function AuthModal() {
         onClick={(e) => e.stopPropagation()}
         style={{ maxWidth: 480 }}
       >
+        <div className="modal-grab-handle" />
         {/* Header with Luxury Emerald Accent */}
         <div
           className="modal-header"
