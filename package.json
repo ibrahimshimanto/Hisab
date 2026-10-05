@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test tests/*.test.js",
+    "test:dates": "TZ=Asia/Dhaka node --test tests/phase1.test.js && TZ=America/Los_Angeles node --test tests/phase1.test.js"
   },
   "devDependencies": {
     "playwright": "^1.63.0",

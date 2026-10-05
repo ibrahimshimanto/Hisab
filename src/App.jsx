@@ -1,6 +1,7 @@
 import { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { I18nProvider } from './i18n/index.jsx';
+import SaveNotice from './components/common/SaveNotice.jsx';
 import useStore from './store/useStore.js';
 import Layout from './components/layout/Layout.jsx';
 import HisabLogo from './components/common/HisabLogo.jsx';
@@ -66,6 +67,10 @@ function AppContent() {
     }
   }, []);
 
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', settings.theme || 'light');
+  }, [settings.theme]);
+
   // 1. Cold start / checking session loading screen
   if (isAuthLoading) {
     return <FullscreenLoadingFallback />;
@@ -101,6 +106,7 @@ function AppContent() {
 export default function App() {
   return (
     <I18nProvider>
+      <SaveNotice />
       <AppContent />
     </I18nProvider>
   );

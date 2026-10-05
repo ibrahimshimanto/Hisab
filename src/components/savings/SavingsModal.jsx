@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { localDateString, parseDate, isIncome, isExpense, expenseAmount } from '../../lib/accounting.js';
+import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { lockBodyScroll, unlockBodyScroll } from '../../utils/modalHelper.js';
 import {
@@ -24,6 +25,7 @@ export default function SavingsModal() {
   const isOpen = savingsModal.isOpen;
   const editGoal = savingsModal.editGoal;
 
+  const submissionId = useRef(crypto.randomUUID());
   const [name, setName] = useState('');
   const [type, setType] = useState('dps');
   const [targetAmount, setTargetAmount] = useState('');
@@ -42,10 +44,11 @@ export default function SavingsModal() {
       setCurrentAmount(editGoal.currentAmount?.toString() || '');
       setMonthlyContribution(editGoal.monthlyContribution?.toString() || '');
       setInterestRate(editGoal.interestRate?.toString() || '');
-      setTargetDate(editGoal.targetDate ? editGoal.targetDate.split('T')[0] : '');
+      setTargetDate(editGoal.targetDate ? localDateString(editGoal.targetDate) : '');
       setLinkedAccountId(editGoal.linkedAccountId || '');
       setIsLocked(!!editGoal.isLocked);
     } else {
+      submissionId.current = crypto.randomUUID();
       setName('');
       setType('dps');
       setTargetAmount('');
@@ -55,7 +58,7 @@ export default function SavingsModal() {
       // Default 1 year from now
       const d = new Date();
       d.setFullYear(d.getFullYear() + 1);
-      setTargetDate(d.toISOString().split('T')[0]);
+      setTargetDate(localDateString(d));
       setLinkedAccountId(accounts[0]?.id || '');
       setIsLocked(true);
     }
@@ -79,22 +82,23 @@ export default function SavingsModal() {
     if (!name.trim() || !targetAmount) return;
 
     const goalData = {
+      id: editGoal?.id || submissionId.current,
       name: name.trim(),
       type,
-      targetAmount: Number(targetAmount),
-      currentAmount: Number(currentAmount || 0),
-      monthlyContribution: Number(monthlyContribution || 0),
-      interestRate: Number(interestRate || 0),
-      targetDate: targetDate ? new Date(targetDate).toISOString() : '',
+      targetAmount,
+      currentAmount: currentAmount || 0,
+      monthlyContribution: monthlyContribution || 0,
+      interestRate: interestRate || 0,
+      targetDate,
       startDate: editGoal?.startDate || new Date().toISOString(),
       linkedAccountId,
       isLocked: isLocked || type === 'fdr' || type === 'dps',
     };
 
     if (editGoal) {
-      updateSavingsGoal(editGoal.id, goalData);
+      if (!updateSavingsGoal(editGoal.id, goalData)) return;
     } else {
-      addSavingsGoal(goalData);
+      if (!addSavingsGoal(goalData)) return;
     }
 
     closeSavingsModal();

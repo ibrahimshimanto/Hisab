@@ -1,4 +1,6 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import useStore from '../store/useStore.js';
+import { localDateString, parseDate, isIncome, isExpense, expenseAmount } from '../lib/accounting.js';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import en from './en.json';
 import bn from './bn.json';
 
@@ -11,9 +13,15 @@ export function I18nProvider({ children }) {
     return localStorage.getItem('hisab-lang') || 'en';
   });
 
+  const savedLanguage = useStore((state) => state.settings.language);
+  useEffect(() => {
+    if (['en','bn'].includes(savedLanguage)) { setLang(savedLanguage); localStorage.setItem('hisab-lang',savedLanguage); }
+  }, [savedLanguage]);
+
   const changeLanguage = useCallback((newLang) => {
     setLang(newLang);
     localStorage.setItem('hisab-lang', newLang);
+    if (useStore.getState().user) useStore.getState().updateSettings({language:newLang});
     document.documentElement.setAttribute('data-lang', newLang);
   }, []);
 
@@ -56,7 +64,7 @@ export function I18nProvider({ children }) {
 
   // Format date
   const formatDate = useCallback((dateStr) => {
-    const date = new Date(dateStr);
+    const date = parseDate(dateStr);
     if (lang === 'bn') {
       const day = toBanglaDigits(date.getDate());
       const month = bnMonths[date.getMonth()];

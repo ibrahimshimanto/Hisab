@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { localDateString, parseDate, isIncome, isExpense, expenseAmount } from '../lib/accounting.js';
+import { useState, useRef, useMemo } from 'react';
 import { Plus, Trash2, Edit2, AlertTriangle, CheckCircle, AlertCircle } from 'lucide-react';
 import { useTranslation } from '../i18n/index.jsx';
 import useStore from '../store/useStore.js';
@@ -8,6 +9,7 @@ export default function Budgets() {
   const { t, formatCurrency, lang } = useTranslation();
   const { budgets, transactions, categories, addBudget, updateBudget, deleteBudget } = useStore();
 
+  const submissionId = useRef(crypto.randomUUID());
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingBudget, setEditingBudget] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -20,12 +22,12 @@ export default function Budgets() {
 
   const categorySpending = useMemo(() => {
     const expenses = transactions.filter((t) => {
-      const d = new Date(t.date);
-      return d.getFullYear() === currentYear && d.getMonth() === currentMonth && t.type === 'expense';
+      const d = parseDate(t.date);
+      return d.getFullYear() === currentYear && d.getMonth() === currentMonth && isExpense(t);
     });
     const spending = {};
     expenses.forEach((t) => {
-      spending[t.categoryId] = (spending[t.categoryId] || 0) + t.amount;
+      spending[t.categoryId] = (spending[t.categoryId] || 0) + expenseAmount(t);
     });
     return spending;
   }, [transactions, currentYear, currentMonth]);
@@ -54,6 +56,7 @@ export default function Budgets() {
   }, [budgets, categories, editingBudget]);
 
   const resetForm = () => {
+    submissionId.current = crypto.randomUUID();
     setFormCategoryId('');
     setFormLimit('');
     setEditingBudget(null);
@@ -75,13 +78,12 @@ export default function Budgets() {
   };
 
   const handleSave = () => {
-    const limit = parseFloat(formLimit);
-    if (!formCategoryId || !limit) return;
+    const limit = formLimit;
 
     if (editingBudget) {
-      updateBudget(editingBudget.id, { categoryId: formCategoryId, limit, amount: limit });
+      if (!updateBudget(editingBudget.id, { categoryId: formCategoryId, limit })) return;
     } else {
-      addBudget({ categoryId: formCategoryId, limit, amount: limit });
+      if (!addBudget({ id: submissionId.current, categoryId: formCategoryId, limit })) return;
     }
     setShowAddModal(false);
     resetForm();

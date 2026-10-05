@@ -232,8 +232,8 @@ export default function Onboarding({ onComplete }) {
         ]);
       }
 
+      if (!completeOnboarding()) return;
       await syncToCloud();
-      completeOnboarding();
       onComplete?.();
       window.scrollTo(0, 0);
 
