@@ -104,12 +104,13 @@ export default function SavingsDepositModal() {
               <input
                 id="deposit-amount"
                 type="number"
+                  step="0.01"
                 className="form-input"
                 style={{ paddingLeft: 28, fontSize: '1.25rem', fontWeight: 'bold' }}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="5000"
-                min="1"
+                min="0.01"
                 max={!isDeposit ? goal.currentAmount : undefined}
                 required
                 autoFocus

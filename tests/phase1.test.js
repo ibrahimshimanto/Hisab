@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  reviewData,
   money,
   addMoney,
   localDateString,
@@ -157,11 +158,29 @@ test('opening balances, transaction reversal, transfer and savings preserve mone
   await save();
 });
 test('repeat form submissions apply a stable operation only once', async () => {
- reset(); const account={id:'stable-account',name:'Wallet',balance:100,type:'wallet'};
- assert.equal(s().addAccount(account),true); assert.equal(s().addAccount(account),true);assert.equal(s().accounts.length,1);
- const transaction={id:'stable-txn',type:'expense',amount:10,categoryId:'food',accountId:account.id,date:'2026-03-01'};
- assert.equal(s().addTransaction(transaction),true);assert.equal(s().addTransaction(transaction),true);assert.equal(s().accounts[0].balance,90);
- assert.equal(s().transactions.filter((t)=>t.id==='stable-txn').length,1);await save();
+  reset();
+  const account = {
+    id: 'stable-account',
+    name: 'Wallet',
+    balance: 100,
+    type: 'wallet',
+  };
+  assert.equal(s().addAccount(account), true);
+  assert.equal(s().addAccount(account), true);
+  assert.equal(s().accounts.length, 1);
+  const transaction = {
+    id: 'stable-txn',
+    type: 'expense',
+    amount: 10,
+    categoryId: 'food',
+    accountId: account.id,
+    date: '2026-03-01',
+  };
+  assert.equal(s().addTransaction(transaction), true);
+  assert.equal(s().addTransaction(transaction), true);
+  assert.equal(s().accounts[0].balance, 90);
+  assert.equal(s().transactions.filter((t) => t.id === 'stable-txn').length, 1);
+  await save();
 });
 test('refund offsets expense and invalid budgets leave state unchanged', async () => {
   reset();
@@ -252,6 +271,37 @@ test('recurring payment is idempotent for its month', async () => {
   assert.equal(s().payRecurringBill(b, { date: '2026-03-01' }), false);
   assert.equal(s().accounts[0].balance, 90);
   assert.equal(s().recurringBills.length, 1);
+  await save();
+});
+test('legacy review preserves originals and balances while confirming classification', async () => {
+  reset();
+  s().addAccount({ name: 'Wallet', balance: 100 });
+  const account = s().accounts[0].id;
+  store.setState({
+    transactions: [
+      {
+        id: 'legacy-opening',
+        type: 'income',
+        amount: 100,
+        accountId: account,
+        categoryId: 'salary',
+        date: '2026-03-01',
+      },
+    ],
+  });
+  const old = s().accounts[0].balance;
+  assert.equal(reviewData(s()).length, 1);
+  assert.equal(
+    s().reviewLegacyTransaction('legacy-opening', {
+      accountId: account,
+      kind: 'opening',
+    }),
+    true
+  );
+  assert.equal(s().accounts[0].balance, old);
+  assert.equal(s().getMonthlyIncome(2026, 2), 0);
+  assert.equal(reviewData(s()).length, 0);
+  assert.equal(s().adjustments.length, 1);
   await save();
 });
 test('full backup roundtrips all persisted fields and rejects malformed values', async () => {
