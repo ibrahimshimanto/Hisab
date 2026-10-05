@@ -1,3 +1,4 @@
+import { localDateString, parseDate, isIncome, isExpense, expenseAmount } from '../../lib/accounting.js';
 import { useState, useMemo } from 'react';
 import { Sliders, RotateCcw, ChevronDown, ChevronUp, Leaf, Scale, Compass, Rocket, Zap, Flame, ShieldAlert, Sparkles, TrendingUp, Info } from 'lucide-react';
 import useStore from '../../store/useStore.js';
@@ -19,11 +20,11 @@ export default function FinancialModeCard() {
   // Financial statistics for current month
   const { monthlyIncome, monthlyExpense } = useMemo(() => {
     const monthTxns = transactions.filter((t) => {
-      const d = new Date(t.date);
+      const d = parseDate(t.date);
       return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
     });
-    const income = monthTxns.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-    const expense = monthTxns.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+    const income = monthTxns.filter(isIncome).reduce((s, t) => s + t.amount, 0);
+    const expense = monthTxns.filter(isExpense).reduce((s, t) => s + expenseAmount(t), 0);
     return { monthlyIncome: income, monthlyExpense: expense };
   }, [transactions, currentYear, currentMonth]);
 
@@ -38,7 +39,7 @@ export default function FinancialModeCard() {
   const expenseRate = 100 - savingRate;
 
   // Mode calculations
-  const effectiveIncome = monthlyIncome > 0 ? monthlyIncome : accounts.reduce((s, a) => s + (a.balance || 0), 0);
+  const effectiveIncome = monthlyIncome;
   const targetSavingsAmount = Math.round(effectiveIncome * (savingRate / 100));
   const maxExpenseAllowed = Math.max(0, effectiveIncome - targetSavingsAmount);
   const remainingAllowance = Math.max(0, maxExpenseAllowed - monthlyExpense);

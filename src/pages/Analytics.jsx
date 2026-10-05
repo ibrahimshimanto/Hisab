@@ -1,3 +1,4 @@
+import { localDateString, parseDate, isIncome, isExpense, expenseAmount } from '../lib/accounting.js';
 import { useState, useMemo, lazy, Suspense } from 'react';
 import {
   Calendar as CalendarIcon, TrendingUp, TrendingDown, ArrowRightLeft, ArrowRight,
@@ -46,7 +47,7 @@ export default function Analytics() {
   const [activeHorizon, setActiveHorizon] = useState('30days'); // 'today' | '7days' | '30days' | 'thisMonth' | 'thisYear' | 'custom'
 
   // Daily filter state
-  const [selectedDay, setSelectedDay] = useState(() => new Date().toISOString().slice(0, 10));
+  const [selectedDay, setSelectedDay] = useState(() => localDateString());
 
   // Monthly filter state & real-time calendar references
   const now = useMemo(() => new Date(), []);
@@ -70,9 +71,9 @@ export default function Analytics() {
   const [customStart, setCustomStart] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 14);
-    return d.toISOString().slice(0, 10);
+    return localDateString(d);
   });
-  const [customEnd, setCustomEnd] = useState(() => new Date().toISOString().slice(0, 10));
+  const [customEnd, setCustomEnd] = useState(() => localDateString());
 
   const setPresetRange = (days) => {
     const end = new Date();
@@ -82,12 +83,12 @@ export default function Analytics() {
     } else {
       start.setDate(start.getDate() - days);
     }
-    setCustomStart(start.toISOString().slice(0, 10));
-    setCustomEnd(end.toISOString().slice(0, 10));
+    setCustomStart(localDateString(start));
+    setCustomEnd(localDateString(end));
   };
 
   const isPresetActive = (days) => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDateString();
     if (customEnd !== today) return false;
     const start = new Date();
     if (days === 'month') {
@@ -95,7 +96,7 @@ export default function Analytics() {
     } else {
       start.setDate(start.getDate() - days);
     }
-    return customStart === start.toISOString().slice(0, 10);
+    return customStart === localDateString(start);
   };
 
   // AI Modal
@@ -145,7 +146,7 @@ export default function Analytics() {
   // DATE RANGE RESOLVER FOR ALL 6 PRESETS
   const dateRange = useMemo(() => {
     const today = new Date();
-    const todayStr = today.toISOString().slice(0, 10);
+    const todayStr = localDateString(today);
 
     if (activeHorizon === 'today') {
       return { start: todayStr, end: todayStr, label: lang === 'bn' ? 'আজ' : 'Today' };
@@ -158,7 +159,7 @@ export default function Analytics() {
       const d = new Date();
       d.setDate(d.getDate() - 6);
       return {
-        start: d.toISOString().slice(0, 10),
+        start: localDateString(d),
         end: todayStr,
         label: lang === 'bn' ? 'গত ৭ দিন' : 'Last 7 Days',
       };
@@ -167,7 +168,7 @@ export default function Analytics() {
       const d = new Date();
       d.setDate(d.getDate() - 29);
       return {
-        start: d.toISOString().slice(0, 10),
+        start: localDateString(d),
         end: todayStr,
         label: lang === 'bn' ? 'গত ৩০ দিন' : 'Last 30 Days',
       };
@@ -176,8 +177,8 @@ export default function Analytics() {
       const startOfMonth = new Date(selectedYear, selectedMonth, 1);
       const endOfMonth = new Date(selectedYear, selectedMonth + 1, 0);
       return {
-        start: startOfMonth.toISOString().slice(0, 10),
-        end: endOfMonth.toISOString().slice(0, 10),
+        start: localDateString(startOfMonth),
+        end: localDateString(endOfMonth),
         label: `${monthNames[selectedMonth]} ${selectedYear}`,
       };
     }
@@ -185,8 +186,8 @@ export default function Analytics() {
       const startOfYear = new Date(selectedYear, 0, 1);
       const endOfYear = new Date(selectedYear, 11, 31);
       return {
-        start: startOfYear.toISOString().slice(0, 10),
-        end: endOfYear.toISOString().slice(0, 10),
+        start: localDateString(startOfYear),
+        end: localDateString(endOfYear),
         label: `${selectedYear}`,
       };
     }
@@ -202,19 +203,19 @@ export default function Analytics() {
   const filteredData = useMemo(() => {
     const { start, end } = dateRange;
     const txns = transactions.filter((t) => {
-      const d = t.date ? t.date.slice(0, 10) : '';
+      const d = t.date ? localDateString(t.date) : '';
       return d >= start && d <= end;
     });
 
-    const income = txns.filter((t) => t.type === 'income').reduce((s, t) => s + (t.amount || 0), 0);
-    const expense = txns.filter((t) => t.type === 'expense').reduce((s, t) => s + (t.amount || 0), 0);
+    const income = txns.filter(isIncome).reduce((s, t) => s + (t.amount || 0), 0);
+    const expense = txns.filter(isExpense).reduce((s, t) => s + expenseAmount(t), 0);
     const netCashFlow = income - expense;
     const savingsRate = income > 0 ? Math.max(0, Math.round(((income - expense) / income) * 100)) : 0;
 
     // Category grouping
     const categoryTotals = {};
-    txns.filter((t) => t.type === 'expense').forEach((t) => {
-      categoryTotals[t.categoryId] = (categoryTotals[t.categoryId] || 0) + (t.amount || 0);
+    txns.filter(isExpense).forEach((t) => {
+      categoryTotals[t.categoryId] = (categoryTotals[t.categoryId] || 0) + expenseAmount(t);
     });
 
     return {
@@ -240,9 +241,9 @@ export default function Analytics() {
     ];
     const totals = [0, 0, 0, 0, 0, 0, 0];
 
-    filteredData.txns.filter((t) => t.type === 'expense').forEach((t) => {
-      const d = new Date(t.date);
-      totals[d.getDay()] += t.amount;
+    filteredData.txns.filter(isExpense).forEach((t) => {
+      const d = parseDate(t.date);
+      totals[d.getDay()] += expenseAmount(t);
     });
 
     return {
@@ -264,11 +265,11 @@ export default function Analytics() {
     const monthlyExpenses = new Array(12).fill(0);
 
     transactions.forEach((t) => {
-      const d = new Date(t.date);
+      const d = parseDate(t.date);
       if (d.getFullYear() === selectedYear) {
         const m = d.getMonth();
-        if (t.type === 'income') monthlyIncomes[m] += t.amount;
-        if (t.type === 'expense') monthlyExpenses[m] += t.amount;
+        if (isIncome(t)) monthlyIncomes[m] += t.amount;
+        if (isExpense(t)) monthlyExpenses[m] += expenseAmount(t);
       }
     });
 
@@ -330,10 +331,10 @@ export default function Analytics() {
 
     const dailyExpenseMap = {};
     transactions.forEach((t) => {
-      const d = new Date(t.date);
-      if (d.getFullYear() === year && d.getMonth() === month && t.type === 'expense') {
+      const d = parseDate(t.date);
+      if (d.getFullYear() === year && d.getMonth() === month && isExpense(t)) {
         const dayNum = d.getDate();
-        dailyExpenseMap[dayNum] = (dailyExpenseMap[dayNum] || 0) + t.amount;
+        dailyExpenseMap[dayNum] = (dailyExpenseMap[dayNum] || 0) + expenseAmount(t);
       }
     });
 
@@ -909,7 +910,7 @@ export default function Analytics() {
                       {t.note || t.categoryId}
                     </div>
                     <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: 2 }}>
-                      {new Date(t.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {t.categoryId}
+                      {parseDate(t.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {t.categoryId}
                     </div>
                   </div>
 

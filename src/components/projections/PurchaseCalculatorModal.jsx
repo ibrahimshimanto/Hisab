@@ -1,3 +1,4 @@
+import { localDateString, parseDate, isIncome, isExpense, expenseAmount } from '../../lib/accounting.js';
 import { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { lockBodyScroll, unlockBodyScroll } from '../../utils/modalHelper.js';
@@ -38,7 +39,7 @@ export default function PurchaseCalculatorModal() {
   const [targetDate, setTargetDate] = useState(() => {
     const d = new Date();
     d.setMonth(d.getMonth() + 6);
-    return d.toISOString().split('T')[0];
+    return localDateString(d);
   });
   const [createdSuccess, setCreatedSuccess] = useState(false);
 

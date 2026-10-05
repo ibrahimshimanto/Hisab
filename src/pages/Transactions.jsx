@@ -1,3 +1,5 @@
+import { previewCSV, exportCSV } from '../lib/csv.js';
+import { localDateString, parseDate, isIncome, isExpense, expenseAmount } from '../lib/accounting.js';
 import { useState, useMemo, useRef } from 'react';
 import {
   Plus, ArrowUpRight, ArrowDownRight, Search,
@@ -16,6 +18,7 @@ export default function Transactions() {
     addCustomCategory, importTransactions,
   } = useStore();
 
+  const submissionId = useRef(crypto.randomUUID());
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingTxn, setEditingTxn] = useState(null);
   const [inspectingTxn, setInspectingTxn] = useState(null);
@@ -31,20 +34,22 @@ export default function Transactions() {
   const [formCategoryId, setFormCategoryId] = useState('');
   const [formCustomCategory, setFormCustomCategory] = useState('');
   const [formAccountId, setFormAccountId] = useState(() => (accounts && accounts.length > 0 ? accounts[0].id : ''));
-  const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
+  const [formDate, setFormDate] = useState(localDateString());
   const [formDescription, setFormDescription] = useState('');
   const [formRecurring, setFormRecurring] = useState(false);
   const [showCustomCategory, setShowCustomCategory] = useState(false);
 
   const fileInputRef = useRef();
+  const [csvPreview, setCsvPreview] = useState(null);
 
   const resetForm = () => {
+    submissionId.current = crypto.randomUUID();
     setFormType('expense');
     setFormAmount('');
     setFormCategoryId('');
     setFormCustomCategory('');
     setFormAccountId(accounts.length > 0 ? accounts[0].id : '');
-    setFormDate(new Date().toISOString().split('T')[0]);
+    setFormDate(localDateString());
     setFormDescription('');
     setFormRecurring(false);
     setShowCustomCategory(false);
@@ -58,11 +63,11 @@ export default function Transactions() {
 
   const openEdit = (txn) => {
     setEditingTxn(txn);
-    setFormType(txn.type);
+    setFormType(txn.kind === 'refund' ? 'refund' : txn.type);
     setFormAmount(String(txn.amount));
     setFormCategoryId(txn.categoryId);
     setFormAccountId(txn.accountId);
-    setFormDate(txn.date);
+    setFormDate(localDateString(txn.date));
     setFormDescription(txn.description || '');
     setFormRecurring(txn.recurring || false);
     setShowCustomCategory(false);
@@ -70,19 +75,20 @@ export default function Transactions() {
   };
 
   const handleSave = () => {
-    const amount = parseFloat(formAmount);
-    if (!amount || !formAccountId) return;
+    const amount = formAmount;
 
     let categoryId = formCategoryId;
     if (showCustomCategory && formCustomCategory.trim()) {
-      addCustomCategory(formType, formCustomCategory.trim());
+      addCustomCategory(formType==='refund'?'expense':formType, formCustomCategory.trim());
       categoryId = formCustomCategory.trim().toLowerCase().replace(/\s+/g, '-');
     }
 
-    if (!categoryId) return;
+    if (!categoryId) { useStore.setState({ financialError: 'Choose a category.' }); return; }
 
     const data = {
-      type: formType,
+      id: editingTxn?.id || submissionId.current,
+      type: formType==='refund'?'income':formType,
+      kind: formType,
       amount,
       categoryId,
       accountId: formAccountId,
@@ -92,74 +98,31 @@ export default function Transactions() {
     };
 
     if (editingTxn) {
-      updateTransaction(editingTxn.id, data);
+      if (!updateTransaction(editingTxn.id, data)) return;
     } else {
-      addTransaction(data);
+      if (!addTransaction(data)) return;
     }
     setShowAddModal(false);
     resetForm();
   };
 
   const handleDelete = (id) => {
-    deleteTransaction(id);
+    if (!deleteTransaction(id)) return;
     setDeleteConfirm(null);
   };
 
-  const handleCSVImport = (e) => {
-    const file = e.target.files[0];
+  const handleCSVImport = async (e) => {
+    const file = e.target.files[0]; e.target.value = '';
     if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target.result;
-      const lines = text.split('\n').filter((l) => l.trim());
-      if (lines.length < 2) return;
-
-      const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
-      const txns = [];
-
-      for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(',').map((v) => v.trim());
-        const row = {};
-        headers.forEach((h, idx) => { row[h] = values[idx]; });
-
-        const amount = parseFloat(row.amount);
-        if (isNaN(amount)) continue;
-
-        txns.push({
-          type: (row.type || '').toLowerCase() === 'income' ? 'income' : 'expense',
-          amount: Math.abs(amount),
-          categoryId: (row.category || 'other').toLowerCase().replace(/\s+/g, '-'),
-          accountId: accounts.length > 0 ? accounts[0].id : '',
-          date: row.date || new Date().toISOString().split('T')[0],
-          description: row.description || row.note || '',
-          recurring: false,
-        });
-      }
-
-      if (txns.length > 0) {
-        importTransactions(txns);
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
+    try {
+      if (file.size > 5 * 1024 * 1024) throw new Error('Choose a CSV smaller than 5 MB.');
+      const result = previewCSV(await file.text(), accounts, categories, transactions);
+      setCsvPreview(result);
+    } catch (error) { useStore.setState({ financialError: error.message }); }
   };
-
   const handleCSVExport = () => {
-    const headers = ['Date,Type,Category,Amount,Description,Account'];
-    const rows = transactions.map((txn) => {
-      const cat = getCategoryLabel(txn.categoryId, txn.type);
-      const acc = accounts.find((a) => a.id === txn.accountId);
-      return `${txn.date},${txn.type},${cat},${txn.amount},${txn.description || ''},${acc?.name || ''}`;
-    });
-    const csv = [...headers, ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `hisab-transactions-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const url = URL.createObjectURL(new Blob([exportCSV(transactions, accounts)], {type:'text/csv;charset=utf-8'}));
+    const a = document.createElement('a'); a.href = url; a.download = `hisab-transactions-${localDateString()}.csv`; a.click(); URL.revokeObjectURL(url);
   };
 
   const getCategoryInfo = (categoryId, type) => {
@@ -174,7 +137,7 @@ export default function Transactions() {
     return t(`categories.${type}.${cat.key}`);
   };
 
-  const currentCategories = categories[formType] || [];
+  const currentCategories = categories[formType==='refund'?'expense':formType] || [];
 
   const filteredTransactions = useMemo(() => {
     let filtered = [...transactions];
@@ -196,20 +159,20 @@ export default function Transactions() {
       );
     }
 
-    return filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+    return filtered.sort((a, b) => parseDate(b.date) - parseDate(a.date));
   }, [transactions, filterType, filterCategory, filterSource, searchQuery]);
 
   // Temporal Date Grouping Hook
   const groupedTransactions = useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = localDateString();
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const yesterdayStr = localDateString(yesterday);
 
     const map = new Map();
 
     filteredTransactions.forEach((txn) => {
-      const dateStr = txn.date ? txn.date.split('T')[0] : '';
+      const dateStr = txn.date ? localDateString(txn.date) : '';
       let groupLabel = '';
 
       if (dateStr === todayStr) {
@@ -217,7 +180,7 @@ export default function Transactions() {
       } else if (dateStr === yesterdayStr) {
         groupLabel = lang === 'bn' ? 'গতকাল' : 'Yesterday';
       } else {
-        const d = new Date(dateStr);
+        const d = parseDate(dateStr);
         groupLabel = d.toLocaleDateString(lang === 'bn' ? 'bn-BD' : 'en-US', {
           day: 'numeric',
           month: 'long',
@@ -236,10 +199,10 @@ export default function Transactions() {
 
       const grp = map.get(dateStr);
       grp.items.push(txn);
-      if (txn.type === 'income') {
+      if (isIncome(txn)) {
         grp.netDelta += txn.amount;
-      } else if (txn.type === 'expense') {
-        grp.netDelta -= txn.amount;
+      } else if (isExpense(txn)) {
+        grp.netDelta -= expenseAmount(txn);
       }
     });
 
@@ -281,6 +244,16 @@ export default function Transactions() {
         </div>
       </div>
 
+      <Modal isOpen={Boolean(csvPreview)} onClose={() => setCsvPreview(null)} title="Review CSV import" footer={<>
+        <button className="btn btn-secondary" onClick={() => setCsvPreview(null)}>Cancel</button>
+        <button className="btn btn-primary" disabled={!csvPreview?.transactions.length || Boolean(csvPreview?.errors.length)} onClick={() => { if (importTransactions(csvPreview.transactions)) setCsvPreview(null); }}>Import {csvPreview?.transactions.length || 0} records</button>
+      </>}>
+        <p>Dates, categories, and accounts must match. Imported income increases the selected account balance; expenses decrease it. No records are added until you confirm.</p>
+        <p>{csvPreview?.transactions.length || 0} valid records · {csvPreview?.errors.length || 0} errors or duplicates</p>
+        {csvPreview?.errors.map((error,i) => <p role="alert" key={i}>Row {error.row}: {error.message}</p>)}
+        <div style={{maxHeight:260,overflow:'auto'}}>{csvPreview?.transactions.map((item,i) => <p key={i}>{item.date} · {item.type} · {formatCurrency(item.amount)} · {accounts.find((a) => a.id === item.accountId)?.name} · {item.description}</p>)}</div>
+        <p>Opening balances and internal movements are included in full JSON backups, rather than transaction CSV exports.</p>
+      </Modal>
       {/* Filters Card */}
       <div className="card transaction-filters-card" style={{ marginBottom: 'var(--space-4)', padding: '14px 16px' }}>
         <div className="transaction-filters-grid">
@@ -401,8 +374,8 @@ export default function Transactions() {
       {groupedTransactions.length > 0 ? (
         <div className="transaction-day-cards-list">
           {groupedTransactions.map((group) => {
-            const expenseSum = group.items.filter((i) => i.type === 'expense').reduce((s, i) => s + i.amount, 0);
-            const incomeSum = group.items.filter((i) => i.type === 'income').reduce((s, i) => s + i.amount, 0);
+            const expenseSum = group.items.filter(isExpense).reduce((s, i) => s + expenseAmount(i), 0);
+            const incomeSum = group.items.filter(isIncome).reduce((s, i) => s + i.amount, 0);
 
             return (
               <div key={group.dateStr} className="transaction-day-card card">
@@ -537,6 +510,7 @@ export default function Transactions() {
               <ArrowUpRight size={17} />
               <span>{t('transactions.expense')}</span>
             </button>
+            <button type="button" className={`modal-type-btn income ${formType === 'refund' ? 'active' : ''}`} onClick={() => {setFormType('refund');setFormCategoryId('');}}>Refund</button>
           </div>
         </div>
 
@@ -573,7 +547,7 @@ export default function Transactions() {
                 }}
                 onClick={() => { setFormCategoryId(cat.id); setShowCustomCategory(false); }}
               >
-                {cat.custom ? cat.label : t(`categories.${formType}.${cat.key}`)}
+                {cat.custom ? cat.label : t(`categories.${formType==='refund'?'expense':formType}.${cat.key}`)}
               </button>
             ))}
             <button
@@ -719,7 +693,7 @@ export default function Transactions() {
                   {inspectingTxn.type === 'income' ? '+' : '-'}{formatCurrency(inspectingTxn.amount)}
                 </div>
                 <span className={`badge ${inspectingTxn.type === 'income' ? 'badge-income' : 'badge-expense'}`} style={{ fontSize: 11, fontWeight: 700 }}>
-                  {inspectingTxn.type === 'income' ? (lang === 'bn' ? 'আয় (Inflow)' : 'Income (Credit)') : (lang === 'bn' ? 'ব্যয় (Outflow)' : 'Expense (Debit)')}
+                  {inspectingTxn.kind && !['income','expense'].includes(inspectingTxn.kind) ? inspectingTxn.kind : inspectingTxn.type === 'income' ? (lang === 'bn' ? 'আয় (Inflow)' : 'Income (Credit)') : (lang === 'bn' ? 'ব্যয় (Outflow)' : 'Expense (Debit)')}
                 </span>
               </div>
 

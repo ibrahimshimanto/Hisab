@@ -36,6 +36,7 @@ export default function Accounts() {
     addMoneyToAccount,
   } = useStore();
 
+  const submissionId = useRef(crypto.randomUUID());
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -81,11 +82,12 @@ export default function Accounts() {
   const [transferAmount, setTransferAmount] = useState('');
 
   const totalBalance = accounts.reduce((sum, a) => sum + (a.balance || 0), 0);
-  const matchedAccount = formName.trim()
+  const matchedAccount = false && formName.trim()
     ? accounts.find((a) => a.name.trim().toLowerCase() === formName.trim().toLowerCase())
     : null;
 
   const resetForm = () => {
+    submissionId.current = crypto.randomUUID();
     setFormType('mfs');
     setFormProviderId('bkash');
     setFormName(lang === 'bn' ? 'বিকাশ' : 'bKash');
@@ -134,25 +136,26 @@ export default function Accounts() {
   const handleSaveAccount = () => {
     if (!formName.trim() || !formBalance) return;
     const data = {
+      id: editingAccount?.id || submissionId.current,
       type: formType,
       providerId: formProviderId,
       name: formName.trim(),
-      balance: parseFloat(formBalance) || 0,
+      balance: formBalance,
       incomeSource: formIncomeSource || 'salary',
     };
     if (editingAccount) {
-      updateAccount(editingAccount.id, data);
+      if (!updateAccount(editingAccount.id, data)) return;
     } else {
-      addAccount(data);
+      if (!addAccount(data)) return;
     }
     setShowAddModal(false);
     resetForm();
   };
 
   const handleQuickAddMoney = () => {
-    const amt = parseFloat(topupAmount);
-    if (!topupAccount || !amt || amt <= 0) return;
-    addMoneyToAccount(topupAccount.id, amt, topupIncomeSource, topupNote);
+    const amt = topupAmount;
+    if (!topupAccount) return;
+    if (!addMoneyToAccount(topupAccount.id, amt, topupIncomeSource, topupNote)) return;
     setShowAddMoneyModal(false);
     setTopupAccount(null);
     setTopupAmount('');
@@ -161,16 +164,15 @@ export default function Accounts() {
   };
 
   const handleAdjust = () => {
-    const newBal = parseFloat(adjustBalance);
-    if (isNaN(newBal)) return;
-    adjustAccountBalance(selectedAccountId, newBal, adjustReason);
+    const newBal = adjustBalance;
+    if (!adjustAccountBalance(selectedAccountId, newBal, adjustReason)) return;
     setShowAdjustModal(false);
   };
 
   const handleTransfer = () => {
-    const amt = parseFloat(transferAmount);
+    const amt = transferAmount;
     if (!transferFrom || !transferTo || !amt || transferFrom === transferTo) return;
-    transferBetweenAccounts(transferFrom, transferTo, amt);
+    if (!transferBetweenAccounts(transferFrom, transferTo, amt)) return;
     setShowTransferModal(false);
     setTransferFrom('');
     setTransferTo('');
@@ -178,7 +180,7 @@ export default function Accounts() {
   };
 
   const handleDelete = (id) => {
-    deleteAccount(id);
+    if (!deleteAccount(id)) return;
     setDeleteConfirm(null);
   };
 

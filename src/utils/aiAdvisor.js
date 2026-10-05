@@ -1,3 +1,4 @@
+import { localDateString, parseDate, isIncome, isExpense, expenseAmount } from '../lib/accounting.js';
 /**
  * Hisab (হিসাব) — AI Financial Intelligence Engine
  * Computes multi-dimensional analytics: Health Score (0-100), Liquidity Runway,
@@ -27,16 +28,16 @@ export function analyzeFinancialHealth({
 
   // 2. Current Month Inflow & Outflow
   const currentMonthTxns = transactions.filter((t) => {
-    const d = new Date(t.date);
+    const d = parseDate(t.date);
     return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
   });
 
   const currentMonthIncome = currentMonthTxns
-    .filter((t) => t.type === 'income')
+    .filter(isIncome)
     .reduce((s, t) => s + (t.amount || 0), 0);
 
   const currentMonthExpense = currentMonthTxns
-    .filter((t) => t.type === 'expense')
+    .filter(isExpense)
     .reduce((s, t) => s + (t.amount || 0), 0);
 
   const effectiveIncome = currentMonthIncome > 0 ? currentMonthIncome : (monthlySalary > 0 ? monthlySalary : totalBalance);
@@ -46,8 +47,8 @@ export function analyzeFinancialHealth({
   // 3. Average Daily Burn Rate (last 30 days)
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const last30DaysExpenses = transactions.filter((t) => {
-    const d = new Date(t.date);
-    return t.type === 'expense' && d >= thirtyDaysAgo;
+    const d = parseDate(t.date);
+    return isExpense(t) && d >= thirtyDaysAgo;
   });
   const total30DayExpense = last30DaysExpenses.reduce((s, t) => s + (t.amount || 0), 0);
   const avgDailyBurn = total30DayExpense > 0 ? Math.round(total30DayExpense / 30) : (currentMonthExpense > 0 ? Math.round(currentMonthExpense / Math.max(1, now.getDate())) : 250);
@@ -63,9 +64,9 @@ export function analyzeFinancialHealth({
 
   // 6. Category Spending Spikes (vs previous 30 days)
   const previous30to60Days = transactions.filter((t) => {
-    const d = new Date(t.date);
+    const d = parseDate(t.date);
     const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
-    return t.type === 'expense' && d >= sixtyDaysAgo && d < thirtyDaysAgo;
+    return isExpense(t) && d >= sixtyDaysAgo && d < thirtyDaysAgo;
   });
 
   const currentCategoryTotals = {};

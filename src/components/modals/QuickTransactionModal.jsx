@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { localDateString, parseDate, isIncome, isExpense, expenseAmount } from '../../lib/accounting.js';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Check, ArrowDownLeft, ArrowUpRight, Sparkles, AlertCircle } from 'lucide-react';
 import Modal from '../ui/Modal.jsx';
@@ -10,21 +11,23 @@ export default function QuickTransactionModal() {
   const { t, lang } = useTranslation();
   const { quickAddModal, closeQuickAdd, accounts, categories, addTransaction, addCustomCategory } = useStore();
 
+  const submissionId = useRef(crypto.randomUUID());
   const [type, setType] = useState('expense');
   const [amount, setAmount] = useState('');
   const [accountId, setAccountId] = useState(() => (accounts && accounts.length > 0 ? accounts[0].id : ''));
   const [categoryId, setCategoryId] = useState('');
   const [description, setDescription] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(localDateString());
   const [customCatName, setCustomCatName] = useState('');
   const [isCustomCat, setIsCustomCat] = useState(false);
 
   useEffect(() => {
     if (quickAddModal.isOpen) {
+      submissionId.current = crypto.randomUUID();
       setType(quickAddModal.type || 'expense');
       setAmount('');
       setDescription('');
-      setDate(new Date().toISOString().split('T')[0]);
+      setDate(localDateString());
       setIsCustomCat(false);
       setCustomCatName('');
       if (accounts && accounts.length > 0) {
@@ -52,8 +55,7 @@ export default function QuickTransactionModal() {
 
   const handleSubmit = (e) => {
     if (e) e.preventDefault();
-    const parsedAmount = parseFloat(amount);
-    if (!parsedAmount || parsedAmount <= 0 || !accountId) return;
+    const parsedAmount = amount;
 
     let finalCatId = categoryId;
     if (isCustomCat && customCatName.trim()) {
@@ -61,7 +63,8 @@ export default function QuickTransactionModal() {
       finalCatId = customCatName.trim().toLowerCase().replace(/\s+/g, '-');
     }
 
-    addTransaction({
+    const success = addTransaction({
+      id: submissionId.current,
       type,
       amount: parsedAmount,
       accountId,
@@ -70,7 +73,7 @@ export default function QuickTransactionModal() {
       date,
     });
 
-    closeQuickAdd();
+    if (success) closeQuickAdd();
   };
 
   const currentCats = categories[type] || [];
@@ -181,7 +184,7 @@ export default function QuickTransactionModal() {
                 type="button"
                 className="btn btn-sm btn-primary"
                 onClick={() => {
-                  closeQuickAdd();
+                  if (success) closeQuickAdd();
                   navigate('/accounts');
                 }}
                 style={{ padding: '4px 10px', fontSize: '11px', height: 28 }}

@@ -36,13 +36,12 @@ export default function SavingsDepositModal() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const numAmount = Number(amount);
-    if (isNaN(numAmount) || numAmount <= 0) return;
+    const numAmount = amount;
 
     if (isDeposit) {
-      depositToSavingsGoal(goal.id, numAmount, selectedAccountId, note);
+      if (!depositToSavingsGoal(goal.id, numAmount, selectedAccountId, note)) return;
     } else {
-      withdrawFromSavingsGoal(goal.id, numAmount, selectedAccountId, note);
+      if (!withdrawFromSavingsGoal(goal.id, numAmount, selectedAccountId, note)) return;
     }
 
     closeDepositModal();

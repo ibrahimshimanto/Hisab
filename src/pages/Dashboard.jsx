@@ -1,3 +1,4 @@
+import { localDateString, parseDate, isIncome, isExpense, expenseAmount } from '../lib/accounting.js';
 import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -91,12 +92,12 @@ export default function Dashboard() {
   const thirtyDaysData = useMemo(() => {
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const txns30d = transactions.filter((t) => {
-      const d = new Date(t.date);
+      const d = parseDate(t.date);
       return d >= thirtyDaysAgo;
     });
 
-    const income = txns30d.filter((t) => t.type === 'income').reduce((s, t) => s + (t.amount || 0), 0);
-    const expense = txns30d.filter((t) => t.type === 'expense').reduce((s, t) => s + (t.amount || 0), 0);
+    const income = txns30d.filter(isIncome).reduce((s, t) => s + (t.amount || 0), 0);
+    const expense = txns30d.filter(isExpense).reduce((s, t) => s + expenseAmount(t), 0);
     const savings = income - expense;
     const savingsRate = income > 0 ? Math.max(0, Math.round(((income - expense) / income) * 100)) : 0;
 
@@ -119,7 +120,7 @@ export default function Dashboard() {
   }, [accounts, transactions, savingsGoals, financialMode, modeSettings, lang]);
 
   const recentTransactions = useMemo(() => {
-    return [...transactions].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 6);
+    return [...transactions].sort((a, b) => parseDate(b.date) - parseDate(a.date)).slice(0, 6);
   }, [transactions]);
 
   // Category spending calculated based on filter (7days, 30days, month, year)
@@ -129,7 +130,7 @@ export default function Dashboard() {
 
     const filtered = transactions.filter((t) => {
       if (t.type !== 'expense') return false;
-      const d = new Date(t.date);
+      const d = parseDate(t.date);
       if (breakdownFilter === '7days') {
         return d >= sevenDaysAgo;
       }
@@ -168,13 +169,13 @@ export default function Dashboard() {
     if (trendHorizon === 'year') {
       return monthNames.map((label, m) => {
         const monthTxns = transactions.filter((t) => {
-          const d = new Date(t.date);
+          const d = parseDate(t.date);
           return d.getFullYear() === currentYear && d.getMonth() === m;
         });
         return {
           label,
-          income: monthTxns.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0),
-          expense: monthTxns.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0),
+          income: monthTxns.filter(isIncome).reduce((s, t) => s + t.amount, 0),
+          expense: monthTxns.filter(isExpense).reduce((s, t) => s + expenseAmount(t), 0),
         };
       });
     }
@@ -189,14 +190,14 @@ export default function Dashboard() {
       ];
       return weeks.map((w) => {
         const weekTxns = transactions.filter((t) => {
-          const d = new Date(t.date);
+          const d = parseDate(t.date);
           const day = d.getDate();
           return d.getFullYear() === currentYear && d.getMonth() === currentMonth && day >= w.start && day <= w.end;
         });
         return {
           label: w.label,
-          income: weekTxns.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0),
-          expense: weekTxns.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0),
+          income: weekTxns.filter(isIncome).reduce((s, t) => s + t.amount, 0),
+          expense: weekTxns.filter(isExpense).reduce((s, t) => s + expenseAmount(t), 0),
         };
       });
     }
@@ -209,13 +210,13 @@ export default function Dashboard() {
         const endD = new Date(now.getTime() - i * 6 * 24 * 60 * 60 * 1000);
         const label = `${startD.getDate()}/${startD.getMonth() + 1}-${endD.getDate()}/${endD.getMonth() + 1}`;
         const txns = transactions.filter((t) => {
-          const d = new Date(t.date);
+          const d = parseDate(t.date);
           return d >= startD && d <= endD;
         });
         intervals.push({
           label,
-          income: txns.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0),
-          expense: txns.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0),
+          income: txns.filter(isIncome).reduce((s, t) => s + t.amount, 0),
+          expense: txns.filter(isExpense).reduce((s, t) => s + expenseAmount(t), 0),
         });
       }
       return intervals;
@@ -230,14 +231,14 @@ export default function Dashboard() {
       const m = targetDate.getMonth();
       const d = targetDate.getDate();
       const dayTxns = transactions.filter((t) => {
-        const dt = new Date(t.date);
+        const dt = parseDate(t.date);
         return dt.getFullYear() === y && dt.getMonth() === m && dt.getDate() === d;
       });
       const label = `${dayNames[targetDate.getDay()]} ${d}`;
       days.push({
         label,
-        income: dayTxns.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0),
-        expense: dayTxns.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0),
+        income: dayTxns.filter(isIncome).reduce((s, t) => s + t.amount, 0),
+        expense: dayTxns.filter(isExpense).reduce((s, t) => s + expenseAmount(t), 0),
       });
     }
     return days;

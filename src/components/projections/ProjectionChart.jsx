@@ -1,3 +1,4 @@
+import { localDateString, parseDate, isIncome, isExpense, expenseAmount } from '../../lib/accounting.js';
 import { useState, useMemo } from 'react';
 import {
   Chart as ChartJS,
@@ -59,16 +60,16 @@ export default function ProjectionChart() {
     const currentMonth = now.getMonth();
 
     const thisMonthTxns = transactions.filter((t) => {
-      const d = new Date(t.date);
+      const d = parseDate(t.date);
       return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
     });
 
     const inc = thisMonthTxns
-      .filter((t) => t.type === 'income')
+      .filter(isIncome)
       .reduce((sum, t) => sum + t.amount, 0);
 
     const exp = thisMonthTxns
-      .filter((t) => t.type === 'expense')
+      .filter(isExpense)
       .reduce((sum, t) => sum + t.amount, 0);
 
     const baseIncome = Math.max(salary, inc, 45000); // realistic default fallback

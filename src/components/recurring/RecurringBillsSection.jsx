@@ -1,3 +1,4 @@
+import { localDateString, parseDate, isIncome, isExpense, expenseAmount } from '../../lib/accounting.js';
 import { useState, useMemo } from 'react';
 import {
   Calendar, CheckCircle2, AlertCircle, Clock, Plus,
@@ -41,7 +42,7 @@ export default function RecurringBillsSection({ title, subtitle, showCardWrapper
 
   // Form State for Pay Modal
   const [payAccountId, setPayAccountId] = useState('');
-  const [payDate, setPayDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [payDate, setPayDate] = useState(() => localDateString());
   const [payAmount, setPayAmount] = useState('');
   const [payWithoutTxn, setPayWithoutTxn] = useState(false);
 
@@ -157,7 +158,7 @@ export default function RecurringBillsSection({ title, subtitle, showCardWrapper
 
     const data = {
       name: formName.trim(),
-      amount: Number(formAmount),
+      amount: formAmount,
       dueDay: Math.min(31, Math.max(1, Number(formDueDay) || 1)),
       categoryId: formCategoryId,
       accountId: formAccountId,
@@ -165,9 +166,9 @@ export default function RecurringBillsSection({ title, subtitle, showCardWrapper
     };
 
     if (editingBill) {
-      updateRecurringBill(editingBill.id, data);
+      if (!updateRecurringBill(editingBill.id, data)) return;
     } else {
-      addRecurringBill(data);
+      if (!addRecurringBill(data)) return;
     }
 
     setBillModalOpen(false);
@@ -178,7 +179,7 @@ export default function RecurringBillsSection({ title, subtitle, showCardWrapper
     setPayingBill(bill);
     setPayAmount(String(bill.amount || ''));
     setPayAccountId(bill.accountId || accounts[0]?.id || '');
-    setPayDate(new Date().toISOString().slice(0, 10));
+    setPayDate(localDateString());
     setPayWithoutTxn(false);
     setPayModalOpen(true);
   };
@@ -190,12 +191,13 @@ export default function RecurringBillsSection({ title, subtitle, showCardWrapper
     if (payWithoutTxn) {
       toggleRecurringBillPaid(payingBill.id, currentMonthKey);
     } else {
-      payRecurringBill(payingBill.id, {
+      const success = payRecurringBill(payingBill.id, {
         accountId: payAccountId || payingBill.accountId,
         date: payDate,
-        amount: Number(payAmount) || payingBill.amount,
+        amount: payAmount,
         note: `${payingBill.name} (${monthName})`,
       });
+      if (!success) return;
     }
 
     setPayModalOpen(false);

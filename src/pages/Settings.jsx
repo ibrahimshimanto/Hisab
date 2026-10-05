@@ -1,3 +1,4 @@
+import DataTools from '../components/common/DataTools.jsx';
 import { useState, useMemo, useRef } from 'react';
 import {
   Sun,
@@ -111,30 +112,6 @@ export default function Settings() {
 
   const handleLanguageChange = (newLang) => {
     changeLanguage(newLang);
-  };
-
-  const handleExport = () => {
-    const data = {
-      accounts,
-      transactions,
-      profile,
-      settings,
-      exportedAt: new Date().toISOString(),
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `hisab-backup-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleReset = () => {
-    resetAll();
-    setName('');
-    setShowResetConfirm(false);
-    window.location.reload();
   };
 
   return (
@@ -518,18 +495,7 @@ export default function Settings() {
                 )}
               </div>
 
-              {/* Export Data */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--space-2) 0' }}>
-                <div>
-                  <p style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--weight-medium)', margin: 0 }}>{t('settings.exportData')}</p>
-                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)', margin: '2px 0 0' }}>{t('settings.exportDataDesc')}</p>
-                </div>
-                <button type="button" className="btn btn-secondary btn-sm" onClick={handleExport} style={{ gap: 6 }}>
-                  <Download size={14} />
-                  <span>{t('transactions.exportCSV')}</span>
-                </button>
-              </div>
-
+              <DataTools />
               {/* Sign out if logged in */}
               {user && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--space-3) 0 0', marginTop: 'var(--space-2)', borderTop: '1px dashed var(--color-border-light)' }}>
@@ -561,12 +527,12 @@ export default function Settings() {
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
                     <HardDrive size={11} />
-                    <span>Supabase Cloud Database • Online Active</span>
+                    <span>{syncStatus === 'synced' ? 'Cloud saved' : 'Cloud save: ' + syncStatus}</span>
                   </div>
                 </div>
               </div>
               <span className="badge badge-income" style={{ fontSize: '10px', fontWeight: 'var(--weight-bold)', padding: '3px 8px' }}>
-                ONLINE ACTIVE
+                {syncStatus === 'synced' ? 'CLOUD SAVED' : syncStatus.toUpperCase()}
               </span>
             </div>
           </div>
@@ -574,52 +540,7 @@ export default function Settings() {
       </div>
 
 
-      {/* ========================================================
-          ISOLATED DANGER ZONE CARD (System Data Reset Safety)
-          ======================================================== */}
-      <div className="card danger-zone-card animate-fade-in" style={{ marginTop: 'var(--space-6)' }}>
-        <div className="danger-zone-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div className="danger-zone-icon-box">
-              <AlertTriangle size={20} />
-            </div>
-            <div>
-              <h3 className="danger-zone-title" style={{ color: 'var(--color-expense)' }}>
-                {lang === 'bn' ? 'সতর্কতা অঞ্চল (ডেঞ্জার জোন)' : 'Danger Zone • System Data Reset'}
-              </h3>
-              <p className="card-subtitle" style={{ margin: '2px 0 0' }}>
-                {lang === 'bn'
-                  ? 'সমস্ত হিসাব, লেনদেন, ব্যাংক অ্যাকাউন্ট ও বাজেট স্থায়ীভাবে মুছে ফেলুন'
-                  : 'Permanently erase all local & cloud transactions, accounts, and financial schemes'}
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            className="btn btn-danger btn-sm"
-            onClick={() => setShowResetConfirm(true)}
-            style={{ gap: 6, whiteSpace: 'nowrap' }}
-          >
-            <Trash2 size={14} />
-            <span>{t('settings.resetData')}</span>
-          </button>
-        </div>
-      </div>
 
-      {/* Reset Confirm Modal */}
-      <Modal
-        isOpen={showResetConfirm}
-        onClose={() => setShowResetConfirm(false)}
-        title={t('settings.resetData')}
-        footer={
-          <>
-            <button type="button" className="btn btn-secondary" onClick={() => setShowResetConfirm(false)}>{t('common.cancel')}</button>
-            <button type="button" className="btn btn-danger" onClick={handleReset}>{t('settings.reset')}</button>
-          </>
-        }
-      >
-        <p className="confirm-message">{t('settings.resetConfirm')}</p>
-      </Modal>
     </div>
   );
 }
