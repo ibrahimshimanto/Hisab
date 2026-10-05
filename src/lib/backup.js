@@ -81,6 +81,19 @@ export function parseBackup(text) {
     !data.settings
   )
     throw new Error('Backup is incomplete.');
+  if (
+    !['eco', 'cruise', 'racing'].includes(data.financialMode) ||
+    !['light', 'dark'].includes(data.settings.theme)
+  )
+    throw new Error('Invalid backup preferences.');
+  for (const mode of ['eco', 'cruise', 'racing'])
+    if (
+      !data.modeSettings?.[mode] ||
+      !Number.isFinite(data.modeSettings[mode].savingRate) ||
+      data.modeSettings[mode].savingRate < 0 ||
+      data.modeSettings[mode].savingRate > 100
+    )
+      throw new Error('Invalid savings preference in backup.');
   const issues = reviewData(data);
 
   return {

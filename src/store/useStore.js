@@ -62,7 +62,31 @@ const defaultCategories = {
       color: ['#4ADE80', '#22D3EE', '#2DD4BF', '#FCD34D', '#FB7185'][i],
     })
   ),
+  // 'Other Income' is an existing account-form choice.
 };
+defaultCategories.income.push({
+  id: 'other',
+  key: 'other',
+  label: 'Other income',
+  custom: true,
+  color: '#94A3B8',
+});
+function withDefaults(data = {}) {
+  const result = { ...fresh(), ...data };
+  if (data.categories)
+    result.categories = Object.fromEntries(
+      ['income', 'expense'].map((type) => [
+        type,
+        [
+          ...data.categories[type],
+          ...defaultCategories[type].filter(
+            (c) => !data.categories[type].some((old) => old.id === c.id)
+          ),
+        ],
+      ])
+    );
+  return result;
+}
 const initialData = {
   accounts: [],
   transactions: [],
@@ -212,7 +236,7 @@ const useStore = create((set, get) => {
     set({
       ...fresh(),
       ...initialUI,
-      ...(cache?.data || {}),
+      ...withDefaults(cache?.data),
       user,
       session,
       revision: cache?.revision || 0,
@@ -237,7 +261,7 @@ const useStore = create((set, get) => {
     } else {
       set({
         ...fresh(),
-        ...result.data,
+        ...withDefaults(result.data),
         revision: result.revision,
         pendingSave: null,
         dataLoaded: true,
@@ -393,6 +417,20 @@ const useStore = create((set, get) => {
     reloadCloudCopy: async () => {
       const owner = get().user?.id;
       if (!owner) return false;
+      if (get().dataLoaded && get().syncStatus !== 'synced') {
+        try {
+          localStorage.setItem(
+            `hisab-before-reload:${owner}`,
+            JSON.stringify(createBackup(get()))
+          );
+        } catch {
+          set({
+            syncError:
+              'Could not preserve pending data. Export a backup before replacing this copy.',
+          });
+          return false;
+        }
+      }
       const result = await fetchCloudData(owner);
       if (get().user?.id !== owner) return false;
       if (!result.success) {
@@ -401,7 +439,7 @@ const useStore = create((set, get) => {
       }
       set({
         ...fresh(),
-        ...result.data,
+        ...withDefaults(result.data),
         revision: result.revision,
         pendingSave: null,
         dataLoaded: true,
@@ -418,7 +456,15 @@ const useStore = create((set, get) => {
     signOut: async () => {
       try {
         persist(get());
-      } catch {}
+      } catch {
+        if (get().syncStatus !== 'synced') {
+          set({
+            syncError:
+              'Pending data could not be preserved. Export a backup before signing out.',
+          });
+          return false;
+        }
+      }
       const result = await getSupabase().auth.signOut();
       if (result.error) {
         set({ syncError: result.error.message });
@@ -952,6 +998,8 @@ const useStore = create((set, get) => {
       }),
     addRecurringBill: (data) =>
       commit((s) => {
+        if (data.id && s.recurringBills.some((b) => b.id === data.id))
+          return {};
         const amount = money(data.amount, { positive: true });
         const dueDay = Number(data.dueDay);
         if (
@@ -966,7 +1014,7 @@ const useStore = create((set, get) => {
           recurringBills: [
             {
               ...data,
-              id: id(),
+              id: data.id || id(),
               amount,
               dueDay,
               paidMonths: [],

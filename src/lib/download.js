@@ -7,8 +7,10 @@ export function downloadJSON(data, name) {
   const link = document.createElement('a');
   link.href = url;
   link.download = name;
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 export function downloadBackup(state, prefix = 'hisab-backup') {
   downloadJSON(createBackup(state), `${prefix}-${localDateString()}.json`);

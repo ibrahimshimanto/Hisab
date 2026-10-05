@@ -204,12 +204,13 @@ export default function SavingsModal() {
                 <input
                   id="target-amount"
                   type="number"
+                  step="0.01"
                   className="form-input"
                   style={{ paddingLeft: 28 }}
                   value={targetAmount}
                   onChange={(e) => setTargetAmount(e.target.value)}
                   placeholder="100000"
-                  min="1"
+                  min="0.01"
                   required
                 />
               </div>
@@ -222,6 +223,7 @@ export default function SavingsModal() {
                 <input
                   id="current-amount"
                   type="number"
+                  step="0.01"
                   className="form-input"
                   style={{ paddingLeft: 28 }}
                   value={currentAmount}
@@ -244,6 +246,7 @@ export default function SavingsModal() {
                 <input
                   id="monthly-contribution"
                   type="number"
+                  step="0.01"
                   className="form-input"
                   style={{ paddingLeft: 28 }}
                   value={monthlyContribution}
@@ -261,6 +264,7 @@ export default function SavingsModal() {
               <input
                 id="interest-rate"
                 type="number"
+                  step="0.01"
                 step="0.1"
                 className="form-input"
                 value={interestRate}

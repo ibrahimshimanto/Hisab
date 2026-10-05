@@ -82,9 +82,7 @@ export default function Accounts() {
   const [transferAmount, setTransferAmount] = useState('');
 
   const totalBalance = accounts.reduce((sum, a) => sum + (a.balance || 0), 0);
-  const matchedAccount = false && formName.trim()
-    ? accounts.find((a) => a.name.trim().toLowerCase() === formName.trim().toLowerCase())
-    : null;
+
 
   const resetForm = () => {
     submissionId.current = crypto.randomUUID();
@@ -134,7 +132,6 @@ export default function Accounts() {
   };
 
   const handleSaveAccount = () => {
-    if (!formName.trim() || !formBalance) return;
     const data = {
       id: editingAccount?.id || submissionId.current,
       type: formType,
@@ -171,7 +168,6 @@ export default function Accounts() {
 
   const handleTransfer = () => {
     const amt = transferAmount;
-    if (!transferFrom || !transferTo || !amt || transferFrom === transferTo) return;
     if (!transferBetweenAccounts(transferFrom, transferTo, amt)) return;
     setShowTransferModal(false);
     setTransferFrom('');
@@ -500,28 +496,12 @@ export default function Accounts() {
           })()}
         </div>
 
-        {/* Existing Account Auto-update Notice */}
-        {matchedAccount && !editingAccount && (
-          <div style={{
-            padding: 'var(--space-2) var(--space-3)',
-            borderRadius: 'var(--radius-md)',
-            background: 'rgba(94, 210, 28, 0.12)',
-            border: '1px solid rgba(94, 210, 28, 0.3)',
-            fontSize: 'var(--text-xs)',
-            color: 'var(--color-text-primary)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-          }}>
-            <Sparkles size={15} style={{ flexShrink: 0, color: 'var(--color-primary)' }} />
-            <span>
-              {t('accounts.existingAccountNotice')} ({formatCurrency(matchedAccount.balance)} + {formatCurrency(parseFloat(formBalance) || 0)} = <strong style={{ color: 'var(--color-primary-dark)' }}>{formatCurrency((matchedAccount.balance || 0) + (parseFloat(formBalance) || 0))}</strong>)
-            </span>
-          </div>
-        )}
-
         <div className="form-group">
-          <label className="form-label">{matchedAccount && !editingAccount ? t('accounts.amount') : t('accounts.initialBalance')}</label>
+          <label className="form-label" htmlFor="account-name">{lang === 'bn' ? 'অ্যাকাউন্টের নাম' : 'Account name'}</label>
+          <input id="account-name" className="form-input" value={formName} onChange={(e)=>setFormName(e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">{editingAccount ? t('accounts.initialBalance') : (lang === 'bn' ? 'শুরুর ব্যালেন্স' : 'Opening balance')}</label>
           <input
             className="form-input"
             type="number"
@@ -531,24 +511,7 @@ export default function Accounts() {
           />
         </div>
 
-        {/* Source of Income Dropdown */}
-        {!editingAccount && (
-          <div className="form-group">
-            <label className="form-label">{t('accounts.incomeSource')}</label>
-            <select
-              className="form-input form-select"
-              value={formIncomeSource}
-              onChange={(e) => setFormIncomeSource(e.target.value)}
-            >
-              <option value="salary">{t('accounts.sourcesOfIncome.salary')}</option>
-              <option value="gift">{t('accounts.sourcesOfIncome.gift')}</option>
-              <option value="freelance">{t('accounts.sourcesOfIncome.freelance')}</option>
-              <option value="business">{t('accounts.sourcesOfIncome.business')}</option>
-              <option value="investment">{t('accounts.sourcesOfIncome.investment')}</option>
-              <option value="other">{t('accounts.sourcesOfIncome.other')}</option>
-            </select>
-          </div>
-        )}
+        <p style={{fontSize:'var(--text-sm)',color:'var(--color-text-secondary)'}}>{editingAccount ? 'Balance edits are recorded as adjustments with a reason.' : 'Existing funds are recorded as opening capital and excluded from earned income.'}</p>
       </Modal>
 
       {/* Quick Add Money Modal */}

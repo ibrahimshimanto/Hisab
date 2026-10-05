@@ -95,17 +95,11 @@ export function reviewData(data) {
         reason: 'Invalid amount; original record preserved.',
       });
     }
-    if (
-      !transaction.kind &&
-      (transaction.categoryId === 'savings' ||
-        /starting balance|initial deposit|withdrawal from/i.test(
-          transaction.description || transaction.note || ''
-        ))
-    )
+    if (!transaction.kind)
       issues.push({
         id: transaction.id,
         reason:
-          'Review whether this is opening capital or movement of your own savings.',
+          'This legacy record has no confirmed classification. Review whether it is earned income, spending, opening capital, or movement of your own funds.',
       });
   }
   return issues;

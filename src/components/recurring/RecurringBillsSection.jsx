@@ -1,5 +1,5 @@
 import { localDateString, parseDate, isIncome, isExpense, expenseAmount } from '../../lib/accounting.js';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import {
   Calendar, CheckCircle2, AlertCircle, Clock, Plus,
   Edit2, Trash2, Check, ArrowRight, ShieldAlert,
@@ -25,6 +25,7 @@ export default function RecurringBillsSection({ title, subtitle, showCardWrapper
     toggleRecurringBillPaid,
   } = useStore();
 
+  const submissionId=useRef(crypto.randomUUID());
   const [filter, setFilter] = useState('all'); // 'all' | 'unpaid' | 'paid'
   const [billModalOpen, setBillModalOpen] = useState(false);
   const [editingBill, setEditingBill] = useState(null);
@@ -131,6 +132,7 @@ export default function RecurringBillsSection({ title, subtitle, showCardWrapper
 
   // Handlers for Add/Edit
   const openAddBillModal = () => {
+    submissionId.current=crypto.randomUUID();
     setEditingBill(null);
     setFormName('');
     setFormAmount('');
@@ -154,12 +156,12 @@ export default function RecurringBillsSection({ title, subtitle, showCardWrapper
 
   const handleSaveBill = (e) => {
     if (e) e.preventDefault();
-    if (!formName.trim() || !formAmount) return;
 
     const data = {
+      id: editingBill?.id || submissionId.current,
       name: formName.trim(),
       amount: formAmount,
-      dueDay: Math.min(31, Math.max(1, Number(formDueDay) || 1)),
+      dueDay: Number(formDueDay),
       categoryId: formCategoryId,
       accountId: formAccountId,
       icon: formIcon,
@@ -712,7 +714,7 @@ export default function RecurringBillsSection({ title, subtitle, showCardWrapper
             <div className="form-group">
               <label className="form-label">{lang === 'bn' ? 'পরিমাণ (BDT ৳)' : 'Monthly Amount (৳)'} *</label>
               <input
-                type="number"
+                type="number" step="0.01" min="0.01"
                 className="form-input"
                 placeholder="0.00"
                 value={formAmount}
@@ -888,7 +890,7 @@ export default function RecurringBillsSection({ title, subtitle, showCardWrapper
                   <div className="form-group">
                     <label className="form-label">{lang === 'bn' ? 'পরিমাণ (BDT ৳)' : 'Amount (৳)'}</label>
                     <input
-                      type="number"
+                      type="number" step="0.01" min="0.01"
                       className="form-input"
                       value={payAmount}
                       onChange={(e) => setPayAmount(e.target.value)}

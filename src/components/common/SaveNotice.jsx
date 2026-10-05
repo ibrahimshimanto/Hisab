@@ -11,6 +11,7 @@ export default function SaveNotice() {
     syncToCloud,
     reloadCloudCopy,
     dataLoaded,
+    isAuthLoading,
   } = useStore();
   useEffect(() => {
     const retry = () => {
@@ -26,7 +27,9 @@ export default function SaveNotice() {
     financialError ||
     syncError ||
     (syncStatus === 'syncing'
-      ? 'Saving to cloud…'
+      ? isAuthLoading
+        ? 'Loading your cloud data…'
+        : 'Saving to cloud…'
       : 'Changes pending cloud save.');
   return (
     <aside
@@ -65,7 +68,7 @@ export default function SaveNotice() {
             downloadBackup(useStore.getState(), 'hisab-before-reload');
             if (
               window.confirm(
-                'A backup of your pending changes has been downloaded. Replace this device copy with the newer cloud copy?'
+                'A backup download has been requested, and a recovery copy will be kept on this device. Replace this copy with the newer cloud copy?'
               )
             )
               reloadCloudCopy();

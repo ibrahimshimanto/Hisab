@@ -1,12 +1,13 @@
 import { useState, useRef } from 'react';
 import useStore from '../../store/useStore.js';
-import { parseBackup } from '../../lib/backup.js';
+import { parseBackup, createBackup } from '../../lib/backup.js';
 import { reviewData } from '../../lib/accounting.js';
 import { downloadJSON, downloadBackup } from '../../lib/download.js';
 import Modal from '../ui/Modal.jsx';
 export default function DataTools() {
   const state = useStore();
   const input = useRef();
+  const [exportFile, setExportFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [error, setError] = useState('');
   const [showReview, setShowReview] = useState(false);
@@ -36,7 +37,18 @@ export default function DataTools() {
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         <button
           className="btn btn-secondary btn-sm"
-          onClick={() => downloadBackup(state)}
+          onClick={() => {
+            const backup = createBackup(state);
+            if (exportFile) URL.revokeObjectURL(exportFile.url);
+            const text = JSON.stringify(backup, null, 2);
+            setExportFile({
+              text,
+              url: URL.createObjectURL(
+                new Blob([text], { type: 'application/json' })
+              ),
+            });
+            downloadBackup(state);
+          }}
         >
           Export full backup
         </button>
@@ -53,6 +65,31 @@ export default function DataTools() {
           Review historical records ({issues.length})
         </button>
       </div>
+      {exportFile && (
+        <div>
+          <a
+            className="btn btn-secondary btn-sm"
+            href={exportFile.url}
+            download="hisab-full-backup.json"
+          >
+            Download backup JSON
+          </a>
+          <details>
+            <summary>Backup text if downloads are unavailable</summary>
+            <p>
+              Copy all of this text into a .json file and keep it private. It
+              can be restored using Restore full backup.
+            </p>
+            <textarea
+              aria-label="Full backup JSON"
+              readOnly
+              value={exportFile.text}
+              rows={8}
+              className="form-input"
+            />
+          </details>
+        </div>
+      )}
       <input
         ref={input}
         type="file"
@@ -60,6 +97,32 @@ export default function DataTools() {
         onChange={readBackup}
         hidden
       />
+      {['restore', 'reload']
+        .filter((action) =>
+          localStorage.getItem(`hisab-before-${action}:${state.user?.id}`)
+        )
+        .map((action) => (
+          <button
+            key={action}
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              const backup = JSON.parse(
+                localStorage.getItem(`hisab-before-${action}:${state.user.id}`)
+              );
+              const text = JSON.stringify(backup, null, 2);
+              if (exportFile) URL.revokeObjectURL(exportFile.url);
+              setExportFile({
+                text,
+                url: URL.createObjectURL(
+                  new Blob([text], { type: 'application/json' })
+                ),
+              });
+              downloadJSON(backup, `hisab-before-${action}.json`);
+            }}
+          >
+            Export preserved copy before {action}
+          </button>
+        ))}
       {legacy && (
         <div>
           <p>
