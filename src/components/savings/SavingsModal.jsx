@@ -265,7 +265,7 @@ export default function SavingsModal() {
                 id="interest-rate"
                 type="number"
                   step="0.01"
-                step="0.1"
+                
                 className="form-input"
                 value={interestRate}
                 onChange={(e) => setInterestRate(e.target.value)}
