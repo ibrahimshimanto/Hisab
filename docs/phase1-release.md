@@ -1,38 +1,59 @@
 # Hisab Phase 1 release report
 
-Scope: Phase 1 of the public launch plan (financial correctness and data safety). Status: code and database checks passed; LIVE browser verification pending deployment. Phase 2 product simplification and Phase 3 public-launch preparation are outside this release.
+Updated 6 October 2026 (Asia/Dhaka). **Phase 1 implementation: DONE and deployed to production.** The fresh-account recovery drill and owner review of historical data remain open acceptance checks. Phase 2 simplification and Phase 3 public onboarding are outside this release; this report does not declare the full public launch ready.
 
-| Plan ID | Implementation | Verification before deployment | LIVE status |
+Live app: [Hisab](https://hisab-psi-eight.vercel.app). Implementation merged in [PR #1](https://github.com/ibrahimshimanto/Hisab/pull/1) and [PR #2](https://github.com/ibrahimshimanto/Hisab/pull/2).
+
+## Completed work
+
+| Plan ID | Status | What changed | Evidence and limits |
 |---|---|---|---|
-| FIN-01 | Shared positive, finite, two-decimal validation; server constraints and workspace validation | Invalid transactions/budgets rejected without balance changes | Pending |
-| FIN-02 | Opening balances, earned income, transfers, savings, adjustments and refunds separated | Transfers/savings conserve tracked assets; refund offsets expense; opening balance excluded from income | Pending |
-| FIN-03 | Atomic versioned workspace save; durable operation IDs; form submit IDs; bill month guard | Retry returns one revision; invalid save rolls back; duplicate form/bill actions apply once | Pending |
-| FIN-04 | Quoted CSV parser, exact account mapping, preview, all-or-nothing import, duplicate rejection | Quote/newline roundtrip; selected balance updated; repeated import rejected | Pending |
-| FIN-05 | Local civil date defaults, grouping, report/calendar filtering | Tests in Dhaka and Los Angeles; impossible date rejected | Pending |
-| DATA-01 | RLS enabled on all exposed financial tables; ownership/reference checks; private workspace/history/receipts | Production SQL tests: signed-out denial, owner isolation, foreign-account attachment rejected | Database DONE; app pending |
-| DATA-02 | Account-scoped cache, explicit checked responses, durable pending saves, revision conflicts, deferred auth callback | Network failure/retry, account switch and stale-response isolation tested | Pending |
-| DATA-03 | Full versioned JSON export, validated restore preview, before-restore copy and server revision history | All persisted fields roundtrip; malformed backup rejected | Pending |
-| DATA-04 | Removed all name-based demo purging and automatic account consolidation | Real names retained; duplicate account names stay separate | Pending |
-| DATA-05 | Historical review with classification/account-link preview and explanation; original legacy tables preserved | Missing links/classification flagged; no automatic correction | Tool pending; user review remains |
+| FIN-01 | DONE — LIVE | Shared finite, positive, two-decimal money validation; server validation; visible errors | Live negative expense rejected without closing the form; valid decimal saved once and survived reload. Invalid amounts and budget limits covered by regression and production SQL tests. |
+| FIN-02 | DONE — LIVE | Separate opening balances, earned income, transfers, savings, adjustments and refunds | Live labelled opening wallet persisted with one `opening` record. Tests confirm opening funds excluded from income, refund offsets expense and internal movements conserve tracked assets. Old ambiguous entries require review. |
+| FIN-03 | DONE — LIVE | Atomic revisioned workspace save, durable operation IDs, stable form IDs and bill month guard | Production SQL verifies duplicate retry, stale revision conflict and rollback. Store tests cover repeated form/bill actions. Live records persisted with correct balances. |
+| FIN-04 | DONE — LIVE | Quoted CSV parser, exact account mapping, preview, all-or-nothing import and duplicate rejection | Live quote/newline description survived, Other MFS mapped correctly and balance changed by the imported expense. Reimport showed one duplicate and disabled import. |
+| FIN-05 | DONE — LIVE | Local civil dates for entry defaults, grouping, reports and calendars | Live local-day grouping corrected. Automated boundary tests pass in Asia/Dhaka and America/Los_Angeles. Impossible dates rejected. |
+| DATA-01 | DONE — production | RLS enabled on six legacy tables and three workspace tables; owner and reference checks; anonymous access revoked | Production role tests cover signed-out denial, cross-owner reads/writes/references and forgery. All nine tables have RLS enabled. A second real-user browser check remains in the release matrix. |
+| DATA-02 | DONE — LIVE | Per-user cache, checked cloud errors, durable pending saves, retry, conflict handling, stale-response protection | Tests cover network failure, retry ID stability, conflict, account switch and stale responses. Live Pending changed to Cloud saved and reload retained records. Real multi-device offline/session-expiry drills remain open. |
+| DATA-03 | DONE — LIVE implementation; fresh-account QA PENDING | Full versioned JSON backup, validated preview, preserved pre-restore/pre-reload copies and private revision history | Live export text contained all 14 persisted field groups. Same-account restore of 3 accounts, 11 transactions, budget, savings goal, bill and preferences committed; database equality check against the prior revision was true. Preserved copy remained available after reload. Fresh-account restore is not yet demonstrated. |
+| DATA-04 | DONE — LIVE | Removed name-based demo purging and automatic account consolidation | Existing legacy rows preserved; old unscoped device copy stays separate and exportable. Account names are not used for destructive cleanup. Public isolated demo belongs to Phase 3. |
+| DATA-05 | DONE — LIVE review tool; owner reconciliation PENDING | Historical review with classification/account-link preview and explanation; no silent correction | Review flags every unclassified legacy entry and missing account link. Production's 14 historical orphan rows remain intact. Owner confirmation is needed to resolve affected records. |
 
-## Data preservation
+## Data preservation and recovery
 
-Production inspection found 14 historical transactions without a matching account owned by the same user. They remain intact. No repair was inferred from names or amounts. Existing legacy tables remain available as the migration source; after the first workspace save, old app tabs cannot write over the canonical account data. Refresh old tabs after this release.
+Production inspection initially found RLS disabled on all six legacy tables. Policies existed but were inactive. This was a critical access-control issue; RLS and grants are now enforced and tested. There is no evidence in this bounded work establishing whether any past unauthorized access occurred.
 
-The old unscoped device copy remains untouched and can be exported separately from Settings. It is not automatically assigned or uploaded to the signed-in account because its owner is unknown. Reset has been removed from Settings until its deletion/recovery contract is complete.
+All 28 original production transaction rows remain intact. Fourteen historical transactions have no matching same-owner account; no account, amount or classification was guessed. New saves use one private canonical workspace. Legacy tables remain readable as a migration source, but old app tabs cannot overwrite canonical data once a workspace exists. Refresh old tabs after this release.
 
-## Validation
+The unscoped device copy is not assigned or uploaded to an account whose ownership cannot be established. Restore and conflict reload preserve a device copy before replacing data, and cloud saves retain prior revisions. The unsafe Settings reset was removed until its deletion/recovery contract is implemented.
 
-- Node accounting/store/import/backup/auth tests: 10 passing.
-- Civil-date suite tested in Asia/Dhaka and America/Los_Angeles.
-- Production SQL tests run in a transaction and rolled back; no synthetic SQL fixtures remain.
-- Production security advisor no longer reports disabled RLS or publicly callable/mutable-search-path profile trigger. Leaked-password protection remains disabled; configure before broader public launch: https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection
-- Production build passed.
+The test account retains three clearly identified synthetic additions from this release: decimal expense, quoted CSV expense and opening wallet. No real money moved. Test backup files and screenshots stay local; they are not committed to the public repository.
 
-## Deployment and rollback
+## Verification completed
 
-Deploy through the existing GitHub-linked Hisab Vercel project. Verify the production deployment commit and https://hisab-psi-eight.vercel.app in the signed-in test account before marking LIVE rows DONE.
+- 11 accounting/store/import/backup/auth regression tests pass in each of Asia/Dhaka and America/Los_Angeles.
+- Production build passes.
+- Production SQL assertions pass in a transaction rolled back afterward; no SQL test fixtures remain.
+- Live negative amount, decimal save/reload, quoted CSV/account mapping, repeated import, custom account/opening balance and same-account full restore checks pass.
+- Same-account restore committed revision 4, exactly matching revision 3's full workspace; all legacy transactions remain preserved.
+- No captured console warnings/errors during the final Settings reload and recovery check. This is limited to the tested session, not a claim of zero errors across the product.
+- Browser download automation was inconclusive. The live explicit download link and readable full-backup text fallback were verified, and the fallback payload was used for the restore. Automatic file download is not claimed verified across browsers.
 
-Do not simply redeploy the old frontend after users have saved canonical workspaces: old clients use separate legacy tables. A rollback needs a compatibility build that reads the workspace, or an explicit export/migration of the latest workspace data. The legacy write guard deliberately prevents stale tabs from overwriting newer records. Database history is private to the owner and records prior workspace revisions.
+## Deployment evidence
 
-Full-workspace snapshots are appropriate to this release's small data set; pagination, bounded history retention and large-record performance testing remain public-launch work. A second real user/browser sign-in and backup restore into a fresh account remain acceptance checks beyond mocked account-switch tests and database role tests.
+Application commit `632b2886c30caa5a1c9c57526e30b729fa81e5b3` is merged into `main`. Vercel production deployment `dpl_7GvHhUYadoAnUembwTXHEf7oTwBR` reached READY and owns `hisab-psi-eight.vercel.app`; the updated labels, backup controls and successful restore were verified on that live alias. Three versioned SQL migrations have been applied to the existing production Supabase project. A subsequent documentation-only commit updates this report and does not change the verified application code.
+
+## Open acceptance and launch checks
+
+- Fresh authorized test-account backup restore and independent second-user/browser sign-in.
+- Real offline, expired-session and concurrent multi-device recovery drills.
+- Owner review/reconciliation of historical missing links and ambiguous classifications, after backup.
+- Enable leaked-password protection before broad public launch; it remains the security advisor's outstanding warning. See [Supabase password protection](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
+- Phase 2 accessibility, mobile layout, emergency-fund default and product simplification; health advice still needs its insufficient-data/product treatment even though accounting inputs are corrected.
+- Phase 3 public landing/demo/onboarding/help; Phase 4 real-device, large-ledger performance, monitoring and recovery drill.
+
+## Rollback limits
+
+Do not simply redeploy the old frontend after canonical workspace saves: old clients use legacy tables. A rollback requires a compatibility build reading the current workspace, or an explicit export/migration of the latest data. The legacy write guard intentionally prevents stale tabs overwriting newer records.
+
+Full-workspace snapshots fit this release's small dataset. Pagination, bounded history retention and large-record performance testing remain public-launch work.
